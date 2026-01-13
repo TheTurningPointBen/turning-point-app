@@ -17,10 +17,19 @@ col1, col2, col3 = st.columns(3)
 
 with col1:
     if st.button("👤 Parent"):
-        st.session_state.role = 'parent'
+        try:
+            st.switch_page("pages/parent.py")
+        except Exception:
+            st.session_state.role = 'parent'
 with col2:
     if st.button("🎓 Tutor"):
-        st.session_state.role = 'tutor'
+        try:
+            st.switch_page("pages/tutor_login.py")
+        except Exception:
+            st.session_state.role = 'tutor'
 with col3:
     if st.button("🔑 Admin"):
-        st.session_state.role = 'admin'
+        try:
+            st.switch_page("pages/admin.py")
+        except Exception:
+            st.session_state.role = 'admin'
