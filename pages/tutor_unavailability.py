@@ -1,4 +1,3 @@
-```python
 import streamlit as st
 st.set_page_config(page_title="Tutor Unavailability")
 from datetime import date
@@ -91,4 +90,3 @@ if unavail_res.data:
 else:
     st.info("No unavailability entries yet. By default you are considered available unless you add an unavailability.")
 
-```
