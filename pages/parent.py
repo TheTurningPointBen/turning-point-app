@@ -54,7 +54,7 @@ with tab1:
                         st.session_state["role"] = "parent"
                         st.success("Logged in successfully.")
                         try:
-                            st.switch_page("pages/parent_profile.py")
+                            st.switch_page("pages/parent_dashboard.py")
                         except Exception:
                             try:
                                 st.experimental_rerun()
