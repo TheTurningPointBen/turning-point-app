@@ -1,4 +1,5 @@
 import streamlit as st
+st.set_page_config(page_title="Admin Dashboard")
 from datetime import date, datetime
 import math
 import pandas as pd

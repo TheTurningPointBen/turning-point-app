@@ -1,4 +1,5 @@
 import streamlit as st
+st.set_page_config(page_title="Admin")
 from datetime import datetime, timedelta
 from utils.database import supabase
 

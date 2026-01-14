@@ -1,4 +1,5 @@
 import streamlit as st
+st.set_page_config(page_title="Tutor Bookings")
 from datetime import datetime
 from utils.database import supabase
 

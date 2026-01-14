@@ -1,4 +1,5 @@
 import streamlit as st
+st.set_page_config(page_title="Parent Profile")
 from utils.database import supabase
 
 # Make sure user is logged in

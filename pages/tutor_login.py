@@ -1,4 +1,5 @@
 import streamlit as st
+st.set_page_config(page_title="Tutor Login")
 from supabase import create_client
 from config import SUPABASE_URL, SUPABASE_KEY
 

@@ -1,4 +1,5 @@
 import streamlit as st
+st.set_page_config(page_title="Tutor Dashboard")
 from datetime import datetime, date
 from utils.database import supabase
 
@@ -59,7 +60,7 @@ with col2:
 with col3:
     if st.button("❌\nUnavailability"):
         try:
-            st.switch_page("pages/tutor_availability.py")
+            st.switch_page("pages/tutor_unavailability.py")
         except Exception:
             st.experimental_rerun()
 with col4:

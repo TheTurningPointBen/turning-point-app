@@ -1,4 +1,5 @@
 import streamlit as st
+st.set_page_config(page_title="Admin Confirmed Bookings")
 from datetime import datetime
 from utils.database import supabase
 
@@ -54,6 +55,49 @@ st.title("Confirmed Bookings — Admin")
 if "admin" not in st.session_state:
     st.warning("Please log in as admin on the Admin page first.")
     st.stop()
+
+# Top-left small Back button that returns to the Admin Dashboard
+back_col, main_col = st.columns([1, 9])
+with back_col:
+    if st.button("⬅️ Back", key="back_to_dashboard_confirmed"):
+        st.switch_page("pages/admin_dashboard.py")
+
+    st.markdown(
+        """
+        <style>
+        .admin-back-space{height:4px}
+        </style>
+        <div class="admin-back-space"></div>
+        <script>
+        (function(){
+            const label = '⬅️ Back';
+            const apply = ()=>{
+                const btns = Array.from(document.querySelectorAll('button'));
+                for(const b of btns){
+                    if(b.innerText && b.innerText.trim()===label){
+                        b.style.background = '#0d6efd';
+                        b.style.color = '#ffffff';
+                        b.style.padding = '4px 8px';
+                        b.style.borderRadius = '6px';
+                        b.style.border = '0';
+                        b.style.fontWeight = '600';
+                        b.style.boxShadow = 'none';
+                        b.style.cursor = 'pointer';
+                        b.style.fontSize = '12px';
+                        b.style.lineHeight = '16px';
+                        b.style.display = 'inline-block';
+                        b.style.margin = '0 8px 0 0';
+                        b.style.verticalAlign = 'middle';
+                        break;
+                    }
+                }
+            };
+            setTimeout(apply, 200);
+        })();
+        </script>
+        """,
+        unsafe_allow_html=True,
+    )
 
 try:
     bookings_res = supabase.table("bookings").select("*").eq("status", "Confirmed").order("exam_date").execute()

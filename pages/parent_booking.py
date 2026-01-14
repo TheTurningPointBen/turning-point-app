@@ -1,4 +1,5 @@
 import streamlit as st
+st.set_page_config(page_title="Parent Booking")
 from datetime import datetime, timedelta, time
 from utils.database import supabase
 from utils.email import send_admin_email
