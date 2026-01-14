@@ -1,5 +1,5 @@
 import streamlit as st
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from utils.database import supabase
 from utils.email import send_admin_email
 
@@ -12,12 +12,58 @@ user = st.session_state["user"]
 profile_res = supabase.table("parents").select("*").eq("user_id", user.id).execute()
 profile = profile_res.data[0]
 
+# Top-left Back button (styled) to return to parent profile
+back_col, _ = st.columns([1, 9])
+with back_col:
+        if st.button("⬅️  Back to Profile"):
+                st.switch_page("pages/parent_profile.py")
+
+        # Apply inline styling to the rendered button via JS for a clean horizontal look
+        st.markdown(
+                """
+                <style>
+                /* Fallback minimal spacing so layout stays consistent */
+                .parent-booking-back-space{height:8px}
+                </style>
+                <div class="parent-booking-back-space"></div>
+                <script>
+                (function(){
+                    const label = '⬅️  Back to Profile';
+                    const apply = ()=>{
+                        const btns = Array.from(document.querySelectorAll('button'));
+                                for(const b of btns){
+                                    if(b.innerText && b.innerText.trim()===label){
+                                        b.style.background = '#0d6efd';
+                                        b.style.color = '#ffffff';
+                                        b.style.padding = '6px 10px';
+                                        b.style.borderRadius = '6px';
+                                        b.style.border = '0';
+                                        b.style.fontWeight = '600';
+                                        b.style.boxShadow = 'none';
+                                        b.style.cursor = 'pointer';
+                                        b.style.fontSize = '13px';
+                                        b.style.lineHeight = '18px';
+                                        b.style.display = 'inline-block';
+                                        b.style.margin = '4px 0';
+                                        b.style.verticalAlign = 'middle';
+                                        break;
+                                    }
+                                }
+                    };
+                    // Run after a short delay to ensure Streamlit has rendered the button
+                    setTimeout(apply, 200);
+                })();
+                </script>
+                """,
+                unsafe_allow_html=True,
+        )
+
 st.header("Book a Reader / Scribe for your child")
 
 # Form inputs
 subject = st.text_input("Subject")
 exam_date = st.date_input("Exam Date", min_value=datetime.today())
-start_time = st.time_input("Start Time")
+start_time = st.time_input("Start Time", value=time(7, 45))
 duration = st.number_input("Duration (minutes)", min_value=30, max_value=180, value=60)
 extra_time = st.number_input("Extra Time (minutes)", min_value=0, max_value=60, value=0)
 role_required = st.selectbox("Role Required", ["Reader", "Scribe", "Both"]) 
@@ -34,12 +80,7 @@ try:
         if t.get("roles") in [role_required, "Both"]
     ]
 
-    if eligible_tutors:
-        st.info(f"{len(eligible_tutors)} tutors match your role requirement.")
-        for t in eligible_tutors:
-            st.write(f"{t.get('name')} {t.get('surname')} — {t.get('town')} — {t.get('roles')}")
-    else:
-        st.info("No tutors currently match the selected role.")
+    # Tutor listings are admin-facing; do not show tutor counts or lists to parents.
 except Exception as e:
     st.error(f"Could not load tutors: {e}")
 
@@ -55,130 +96,26 @@ if booking_dt < now:
 delta = booking_dt - now
 
 # Business rule: bookings within 24 hours must be made via WhatsApp
+# Compute booking date/time values used later and leave tutor assignment to admin.
+booking_date = exam_date
+start_dt = datetime.combine(booking_date, start_time)
+end_dt = start_dt + timedelta(minutes=(duration + extra_time))
+selected_tutor_id = None
+
 if booking_dt < now + timedelta(hours=24):
-    wa_number_display = "+27 82 883 5167"
-    wa_link = "https://wa.me/27828835167"
+    wa_number_display = "+27 82 883 6167"
+    wa_link = "https://wa.me/27828836167"
     st.error(f"Bookings within 24 hours must be made via WhatsApp: {wa_number_display}")
     st.markdown(f"[Open WhatsApp chat →]({wa_link})")
     st.stop()
 
-    # Determine which eligible tutors are actually available at the requested time.
-    # Business decision: tutors are considered AVAILABLE by default unless they explicitly mark themselves unavailable
-    # or they already have a conflicting booking. Therefore, start with all eligible tutors and only exclude conflicts.
-    booking_date = exam_date
-    start_dt = datetime.combine(booking_date, start_time)
-    end_dt = start_dt + timedelta(minutes=(duration + extra_time))
-    selected_tutor_id = None
+col1, col2 = st.columns([1,1])
 
-    # Start with all eligible tutors
-    available_tutors = list(eligible_tutors)
 
-    try:
-        final_tutors = []
-        school = profile.get("school")
-
-        for tutor in available_tutors:
-            # Exclude tutors who already have a booking that conflicts with this requested slot
-            booking_res = supabase.table("bookings") \
-                .select("*") \
-                .eq("tutor_id", tutor["id"]) \
-                .eq("exam_date", booking_date.isoformat()) \
-                .execute()
-
-            conflict = False
-            for b in (booking_res.data or []):
-                try:
-                    prev_start = datetime.combine(
-                        booking_date,
-                        datetime.strptime(b["start_time"], "%H:%M:%S").time()
-                    )
-                except Exception:
-                    # if booking start_time parsing fails, skip that booking from conflict checks
-                    continue
-
-                prev_duration = int(b.get("duration") or 0)
-                prev_extra = int(b.get("extra_time") or 0)
-                prev_end = prev_start + timedelta(minutes=(prev_duration + prev_extra))
-
-                buffer_end = prev_end + timedelta(minutes=90)
-
-                # same school exception — no buffer
-                if b.get("school") == school:
-                    buffer_end = prev_end
-
-                if start_dt < buffer_end:
-                    conflict = True
-                    break
-
-            # Also exclude tutors who have an explicit unavailability entry covering this date/time
-            try:
-                unavail_res = supabase.table("tutor_unavailability") \
-                    .select("*") \
-                    .eq("tutor_id", tutor["id"]) \
-                    .execute()
-
-                for u in (unavail_res.data or []):
-                    try:
-                        u_start_date = datetime.fromisoformat(u.get("start_date")).date()
-                        u_end_date = datetime.fromisoformat(u.get("end_date")).date()
-                    except Exception:
-                        continue
-
-                    # if booking_date falls within the unavailability date range
-                    if u_start_date <= booking_date <= u_end_date:
-                        # if unavailability specifies times, compare times; otherwise treat whole day as unavailable
-                        u_start_time = None
-                        u_end_time = None
-                        if u.get("start_time") and u.get("end_time"):
-                            try:
-                                u_start_time = datetime.strptime(u.get("start_time"), "%H:%M:%S").time()
-                                u_end_time = datetime.strptime(u.get("end_time"), "%H:%M:%S").time()
-                            except Exception:
-                                u_start_time = None
-                                u_end_time = None
-
-                        if u_start_time and u_end_time:
-                            # if requested slot overlaps the unavailable times
-                            if not (end_dt.time() <= u_start_time or start_dt.time() >= u_end_time):
-                                conflict = True
-                                break
-                        else:
-                            # full-day unavailability
-                            conflict = True
-                            break
-            except Exception:
-                # if unavailability lookup fails, don't block the tutor based on unavailability
-                pass
-
-            if not conflict:
-                final_tutors.append(tutor)
-
-        if final_tutors:
-            # STEP 5 — limit to top 5
-            top_5 = final_tutors[:5]
-
-            # STEP 6 — admin dropdown to select a tutor
-            tutor_map = {
-                f"{t['name']} {t['surname']} ({t.get('city') or t.get('town')})": t["id"]
-                for t in top_5
-            }
-
-            selected = st.selectbox("Select Tutor", list(tutor_map.keys()))
-            selected_tutor_id = tutor_map[selected]
-
-            st.info(f"{len(top_5)} tutors available (showing top 5).")
-            for t in top_5:
-                st.write(f"{t.get('name')} {t.get('surname')} — {t.get('town')} — {t.get('roles')}")
-        else:
-            st.info("No tutors available at the requested time after applying buffer rules.")
-    except Exception as e:
-        st.error(f"Could not check tutor availability/conflicts: {e}")
-
-if st.button("Book Exam"):
-
+def _insert_booking(add_another=False):
     if delta.total_seconds() < 24*3600:
-        wa_number_display = "+27 82 883 5167"
-        wa_link = "https://wa.me/27828835167"
+        wa_number_display = "+27 82 883 6167"
+        wa_link = "https://wa.me/27828836167"
         st.warning(f"You can still submit, but admin will require WhatsApp confirmation via {wa_number_display}.")
         st.markdown(f"[Open WhatsApp chat →]({wa_link})")
 
@@ -191,7 +128,6 @@ if st.button("Book Exam"):
         "role_required": role_required,
         "exam_date": exam_date.isoformat(),
         "start_time": start_time.strftime("%H:%M:%S"),
-        "end_time": end_dt.time().strftime("%H:%M:%S"),
         "duration": duration,
         "extra_time": extra_time,
         "tutor_id": selected_tutor_id
@@ -306,3 +242,19 @@ The Turning Point
                 st.warning(f"Booking created — couldn't send parent email: {e}")
     else:
         st.error(f"Booking failed: {getattr(insert_res, 'error', None)}")
+
+
+_do_save = col1.button("💾  Save Booking")
+_do_save_add = col2.button("➕  Save & Add Another")
+
+if _do_save:
+    _insert_booking(add_another=False)
+
+if _do_save_add:
+    _insert_booking(add_another=True)
+    try:
+        st.experimental_rerun()
+    except Exception:
+        pass
+
+# Note: Back/Logout button removed per user request
