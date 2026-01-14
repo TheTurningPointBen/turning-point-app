@@ -13,6 +13,31 @@ st.markdown("""
 st.title("The Turning Point Pty Ltd")
 st.subheader("Select your portal")
 
+# Hide Streamlit Pages list in the sidebar for a cleaner landing page
+st.markdown(
+    """
+    <script>
+    (function(){
+        const hide = ()=>{
+            try{
+                const divs = Array.from(document.querySelectorAll('div'));
+                for(const d of divs){
+                    if(d.innerText && (d.innerText.trim().startsWith('Pages') || d.innerText.trim().startsWith('Page'))){
+                        let node = d;
+                        while(node && node.tagName !== 'ASIDE') node = node.parentElement;
+                        if(node) node.remove(); else d.remove();
+                        break;
+                    }
+                }
+            }catch(e){}
+        };
+        setTimeout(hide, 200);
+    })();
+    </script>
+    """,
+    unsafe_allow_html=True,
+)
+
 col1, col2, col3 = st.columns(3)
 
 with col1:

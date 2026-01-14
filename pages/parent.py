@@ -1,5 +1,29 @@
 import streamlit as st
 st.set_page_config(page_title="Parent")
+# Hide Streamlit Pages list in the sidebar for a cleaner login
+st.markdown(
+    """
+    <script>
+    (function(){
+        const hide = ()=>{
+            try{
+                const divs = Array.from(document.querySelectorAll('div'));
+                for(const d of divs){
+                    if(d.innerText && (d.innerText.trim().startsWith('Pages') || d.innerText.trim().startsWith('Page'))){
+                        let node = d;
+                        while(node && node.tagName !== 'ASIDE') node = node.parentElement;
+                        if(node) node.remove(); else d.remove();
+                        break;
+                    }
+                }
+            }catch(e){}
+        };
+        setTimeout(hide, 200);
+    })();
+    </script>
+    """,
+    unsafe_allow_html=True,
+)
 from utils.database import supabase
 import time
 
