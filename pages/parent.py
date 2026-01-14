@@ -1,5 +1,6 @@
 import streamlit as st
 from utils.database import supabase
+import time
 
 st.title("Parent Portal")
 
@@ -14,9 +15,16 @@ with tab1:
         if not email or not password:
             st.error("Please provide both email and password.")
         else:
-            try:
-                res = supabase.auth.sign_in_with_password({"email": email, "password": password})
-                if getattr(res, 'user', None):
+            # Retry logic for network issues
+            max_retries = 3
+            retry_delay = 2
+            
+            for attempt in range(max_retries):
+                try:
+                    with st.spinner(f"Logging in... {f'(Attempt {attempt + 1}/{max_retries})' if attempt > 0 else ''}"):
+                        res = supabase.auth.sign_in_with_password({"email": email, "password": password})
+                    
+                    if getattr(res, 'user', None):
                         st.session_state["user"] = res.user
                         st.session_state["role"] = "parent"
                         st.success("Logged in successfully.")
@@ -27,12 +35,19 @@ with tab1:
                                 st.experimental_rerun()
                             except Exception:
                                 st.markdown("<script>window.location.reload()</script>", unsafe_allow_html=True)
-                else:
-                    st.error("Login failed. Check credentials or confirm your email.")
-                    st.write(res)
-            except Exception as e:
-                st.error("Login exception. Check console for details.")
-                st.exception(e)
+                    else:
+                        st.error("Login failed. Check credentials or confirm your email.")
+                        st.write(res)
+                    break  # Success, exit retry loop
+                    
+                except Exception as e:
+                    if attempt < max_retries - 1:
+                        st.warning(f"Connection issue. Retrying in {retry_delay} seconds...")
+                        time.sleep(retry_delay)
+                    else:
+                        st.error("⚠️ Unable to connect to authentication service. Please check your internet connection and try again.")
+                        with st.expander("Technical Details"):
+                            st.exception(e)
 
 with tab2:
     st.subheader("Parent Registration")

@@ -12,53 +12,53 @@ user = st.session_state["user"]
 profile_res = supabase.table("parents").select("*").eq("user_id", user.id).execute()
 profile = profile_res.data[0]
 
-# Top-left Back button (styled) to return to parent profile
-back_col, _ = st.columns([1, 9])
+# Top-left Back button (smaller) and header inline
+back_col, main_col = st.columns([1, 9])
 with back_col:
-        if st.button("⬅️  Back to Profile"):
-                st.switch_page("pages/parent_profile.py")
+    if st.button("⬅️ Back", key="back_to_profile"):
+        st.switch_page("pages/parent_profile.py")
 
-        # Apply inline styling to the rendered button via JS for a clean horizontal look
-        st.markdown(
-                """
-                <style>
-                /* Fallback minimal spacing so layout stays consistent */
-                .parent-booking-back-space{height:8px}
-                </style>
-                <div class="parent-booking-back-space"></div>
-                <script>
-                (function(){
-                    const label = '⬅️  Back to Profile';
-                    const apply = ()=>{
-                        const btns = Array.from(document.querySelectorAll('button'));
-                                for(const b of btns){
-                                    if(b.innerText && b.innerText.trim()===label){
-                                        b.style.background = '#0d6efd';
-                                        b.style.color = '#ffffff';
-                                        b.style.padding = '6px 10px';
-                                        b.style.borderRadius = '6px';
-                                        b.style.border = '0';
-                                        b.style.fontWeight = '600';
-                                        b.style.boxShadow = 'none';
-                                        b.style.cursor = 'pointer';
-                                        b.style.fontSize = '13px';
-                                        b.style.lineHeight = '18px';
-                                        b.style.display = 'inline-block';
-                                        b.style.margin = '4px 0';
-                                        b.style.verticalAlign = 'middle';
-                                        break;
-                                    }
-                                }
-                    };
-                    // Run after a short delay to ensure Streamlit has rendered the button
-                    setTimeout(apply, 200);
-                })();
-                </script>
-                """,
-                unsafe_allow_html=True,
-        )
+    # Small inline styling for the Back button (applies after render)
+    st.markdown(
+        """
+        <style>
+        /* Minimal spacer to keep layout consistent */
+        .parent-booking-back-space{height:4px}
+        </style>
+        <div class="parent-booking-back-space"></div>
+        <script>
+        (function(){
+            const label = '⬅️ Back';
+            const apply = ()=>{
+                const btns = Array.from(document.querySelectorAll('button'));
+                for(const b of btns){
+                    if(b.innerText && b.innerText.trim()===label){
+                        b.style.background = '#0d6efd';
+                        b.style.color = '#ffffff';
+                        b.style.padding = '4px 8px';
+                        b.style.borderRadius = '6px';
+                        b.style.border = '0';
+                        b.style.fontWeight = '600';
+                        b.style.boxShadow = 'none';
+                        b.style.cursor = 'pointer';
+                        b.style.fontSize = '12px';
+                        b.style.lineHeight = '16px';
+                        b.style.display = 'inline-block';
+                        b.style.margin = '0 8px 0 0';
+                        b.style.verticalAlign = 'middle';
+                        break;
+                    }
+                }
+            };
+            setTimeout(apply, 200);
+        })();
+        </script>
+        """,
+        unsafe_allow_html=True,
+    )
 
-st.header("Book a Reader / Scribe for your child")
+with main_col:
+    st.header("Book a Reader / Scribe for your child")
 
 # Form inputs
 subject = st.text_input("Subject")

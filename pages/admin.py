@@ -23,7 +23,10 @@ with tab1:
             if getattr(res, 'user', None):
                 st.session_state["admin"] = res.user
                 st.success("Admin logged in")
-                safe_rerun()
+                try:
+                    st.switch_page("pages/admin_dashboard.py")
+                except Exception:
+                    safe_rerun()
             else:
                 st.error("Login failed. Check credentials or confirm email.")
                 st.write(res)
@@ -123,17 +126,21 @@ for booking in bookings_res.data:
             except Exception:
                 hours_before = None
 
-            update_payload = {"cancelled": True, "cancelled_at": cancel_time.isoformat()}
-            try:
-                supabase.table("bookings").update({**update_payload, "status": "Cancelled"}).eq("id", booking.get("id")).execute()
-            except Exception:
-                supabase.table("bookings").update(update_payload).eq("id", booking.get("id")).execute()
+            # Build update payload only with keys present on this booking row
+            existing = set(booking.keys() or [])
+            candidate = {"cancelled": True, "cancelled_at": cancel_time.isoformat(), "status": "Cancelled"}
+            payload = {k: v for k, v in candidate.items() if k in existing}
 
-            if hours_before is not None and hours_before < 12:
-                st.warning("Cancelled within 12 hours — billing applies.")
+            if not payload:
+                st.error("Unable to cancel: bookings table missing cancel/status columns. Cancel manually in DB.")
             else:
-                st.success("Booking cancelled without penalty.")
+                supabase.table("bookings").update(payload).eq("id", booking.get("id")).execute()
 
-            safe_rerun()
+                if hours_before is not None and hours_before < 12:
+                    st.warning("Cancelled within 12 hours — billing may apply.")
+                else:
+                    st.success("Booking cancelled without penalty.")
+
+                safe_rerun()
         except Exception as e:
             st.error(f"Failed to cancel booking: {e}")

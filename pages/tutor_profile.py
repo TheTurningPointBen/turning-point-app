@@ -1,0 +1,105 @@
+import streamlit as st
+from utils.database import supabase
+
+st.title("My Tutor Profile")
+
+if "user" not in st.session_state:
+    st.warning("Please login first.")
+    try:
+        st.switch_page("pages/tutor_login.py")
+    except Exception:
+        st.stop()
+
+user = st.session_state.user
+
+# fetch tutor profile
+profile_res = supabase.table("tutors").select("*").eq("user_id", user.id).execute()
+profile = profile_res.data[0] if profile_res.data else None
+
+def safe_rerun():
+    try:
+        st.experimental_rerun()
+    except Exception:
+        st.markdown("<script>window.location.reload()</script>", unsafe_allow_html=True)
+
+if not profile:
+    st.subheader("Complete Your Tutor Profile")
+    name = st.text_input("Name")
+    surname = st.text_input("Surname")
+    phone = st.text_input("Phone Number")
+    town = st.text_input("Town")
+    city = st.text_input("City")
+    transport = st.checkbox("I have my own transport")
+    roles = st.selectbox("Role", ["Reader", "Scribe", "Both"])
+
+    if st.button("Save Profile"):
+        if not all([name, surname, phone, town, city]):
+            st.error("All fields are required.")
+        else:
+            try:
+                insert_res = supabase.table("tutors").insert({
+                    "user_id": user.id,
+                    "name": name,
+                    "surname": surname,
+                    "phone": phone,
+                    "town": town,
+                    "city": city,
+                    "transport": transport,
+                    "roles": roles
+                }).execute()
+
+                if getattr(insert_res, 'error', None) is None:
+                    st.success("Profile submitted. Await admin approval.")
+                    safe_rerun()
+                else:
+                    st.error(f"Failed to submit profile: {getattr(insert_res, 'error', None)}")
+            except Exception as e:
+                st.error(f"Submission error: {e}")
+    st.stop()
+
+# Show profile and allow limited edits if approved state exists
+st.subheader("Profile Details")
+st.write(f"**Name:** {profile.get('name')} {profile.get('surname')}")
+st.write(f"**Phone:** {profile.get('phone')}")
+st.write(f"**Town / City:** {profile.get('town')} / {profile.get('city')}")
+st.write(f"**Transport:** {'Yes' if profile.get('transport') else 'No'}")
+st.write(f"**Roles:** {profile.get('roles')}")
+st.write(f"**Approved:** {profile.get('approved')}")
+
+if st.button("Edit Profile"):
+    try:
+        st.session_state._editing_tutor_profile = True
+        st.experimental_rerun()
+    except Exception:
+        st.markdown("<script>window.location.reload()</script>", unsafe_allow_html=True)
+
+if st.session_state.get("_editing_tutor_profile"):
+    st.subheader("Edit Profile")
+    name = st.text_input("Name", value=profile.get('name') or "")
+    surname = st.text_input("Surname", value=profile.get('surname') or "")
+    phone = st.text_input("Phone Number", value=profile.get('phone') or "")
+    town = st.text_input("Town", value=profile.get('town') or "")
+    city = st.text_input("City", value=profile.get('city') or "")
+    transport = st.checkbox("I have my own transport", value=bool(profile.get('transport')))
+    roles = st.selectbox("Role", ["Reader", "Scribe", "Both"], index=0 if not profile.get('roles') else (0 if profile.get('roles')=='Reader' else (1 if profile.get('roles')=='Scribe' else 2)))
+
+    if st.button("Save Changes"):
+        try:
+            update_res = supabase.table("tutors").update({
+                "name": name,
+                "surname": surname,
+                "phone": phone,
+                "town": town,
+                "city": city,
+                "transport": transport,
+                "roles": roles
+            }).eq("id", profile.get('id')).execute()
+
+            if getattr(update_res, 'error', None) is None:
+                st.success("Profile updated.")
+                del st.session_state["_editing_tutor_profile"]
+                safe_rerun()
+            else:
+                st.error(f"Failed to update: {getattr(update_res, 'error', None)}")
+        except Exception as e:
+            st.error(f"Update error: {e}")

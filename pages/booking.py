@@ -95,19 +95,21 @@ else:
                         else:
                             hours_before = None
 
-                        # Attempt to update booking with cancelled fields; handle missing columns gracefully
+                        # Attempt to update booking with cancelled fields; only update existing columns
                         try:
-                            update_payload = {"cancelled": True, "cancelled_at": cancel_time.isoformat()}
-                            # also set status if present
-                            try:
-                                supabase.table("bookings").update({**update_payload, "status": "Cancelled"}).eq("id", b.get('id')).execute()
-                            except Exception:
-                                supabase.table("bookings").update(update_payload).eq("id", b.get('id')).execute()
+                            existing = set(b.keys() or [])
+                            candidate = {"cancelled": True, "cancelled_at": cancel_time.isoformat(), "status": "Cancelled"}
+                            payload = {k: v for k, v in candidate.items() if k in existing}
 
-                            if hours_before is not None and hours_before < 12:
-                                st.warning("Cancelled within 12 hours — billing applies.")
+                            if not payload:
+                                st.error("Unable to cancel: bookings table missing cancel/status columns. Cancel manually in DB.")
                             else:
-                                st.success("Booking cancelled without penalty.")
+                                supabase.table("bookings").update(payload).eq("id", b.get('id')).execute()
+
+                                if hours_before is not None and hours_before < 12:
+                                    st.warning("Cancelled within 12 hours — billing applies.")
+                                else:
+                                    st.success("Booking cancelled without penalty.")
                         except Exception as e:
                             st.error(f"Failed to cancel booking: {e}")
             else:

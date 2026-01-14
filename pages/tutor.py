@@ -1,8 +1,6 @@
 import streamlit as st
-from supabase import create_client
-from config import SUPABASE_URL, SUPABASE_KEY
-
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+from datetime import datetime, date
+from utils.database import supabase
 
 st.title("Tutor Dashboard")
 
@@ -18,103 +16,105 @@ if "user" not in st.session_state:
 
 user = st.session_state.user
 
-# -------------------------
-# FETCH TUTOR PROFILE
-# -------------------------
-profile_res = supabase.table("tutors") \
-    .select("*") \
-    .eq("user_id", user.id) \
-    .execute()
-
+# fetch tutor profile
+profile_res = supabase.table("tutors").select("*").eq("user_id", user.id).execute()
 profile = profile_res.data[0] if profile_res.data else None
 
-def safe_rerun():
+def _logout():
+    try:
+        supabase.auth.sign_out()
+    except Exception:
+        pass
+    for k in list(st.session_state.keys()):
+        if k != "_is_running":
+            del st.session_state[k]
     try:
         st.experimental_rerun()
     except Exception:
-        st.markdown("<script>window.location.reload()</script>", unsafe_allow_html=True)
+        st.markdown("<script>window.location.href='/'</script>", unsafe_allow_html=True)
 
 if not profile:
-    st.subheader("Complete Your Tutor Profile")
-
-    name = st.text_input("Name")
-    surname = st.text_input("Surname")
-    phone = st.text_input("Phone Number")
-    town = st.text_input("Town")
-    city = st.text_input("City")
-    transport = st.checkbox("I have my own transport")
-    roles = st.selectbox("Role", ["Reader", "Scribe", "Both"])
-
-    if st.button("Save Profile"):
-        if not all([name, surname, phone, town, city]):
-            st.error("All fields are required.")
-        else:
-            try:
-                insert_res = supabase.table("tutors").insert({
-                    "user_id": user.id,
-                    "name": name,
-                    "surname": surname,
-                    "phone": phone,
-                    "town": town,
-                    "city": city,
-                    "transport": transport,
-                    "roles": roles
-                
-                }).execute()
-
-                if getattr(insert_res, 'error', None) is None:
-                    st.success("Profile submitted. Await admin approval.")
-                    safe_rerun()
-                else:
-                    st.error(f"Failed to submit profile: {getattr(insert_res, 'error', None)}")
-            except Exception as e:
-                st.error(f"Submission error: {e}")
-
+    st.info("Please complete your tutor profile first.")
+    if st.button("Go to My Tutor Profile"):
+        try:
+            st.switch_page("pages/tutor_profile.py")
+        except Exception:
+            st.experimental_rerun()
     st.stop()
 
-from datetime import date
+# Icon navigation
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    if st.button("👤\nMy Tutor Profile"):
+        try:
+            st.switch_page("pages/tutor_profile.py")
+        except Exception:
+            st.experimental_rerun()
+with col2:
+    if st.button("📅\nMy Bookings"):
+        try:
+            st.switch_page("pages/tutor_bookings.py")
+        except Exception:
+            st.experimental_rerun()
+with col3:
+    if st.button("❌\nUnavailability"):
+        try:
+            st.switch_page("pages/tutor_availability.py")
+        except Exception:
+            st.experimental_rerun()
+with col4:
+    if st.button("🔒\nLogout"):
+        _logout()
 
-st.subheader("My Availability")
-
-if not profile.get("approved"):
-    st.info("Your profile is pending admin approval. Availability will be enabled once approved.")
-else:
-    avail_date = st.date_input("Available Date", min_value=date.today())
-    start_time = st.time_input("Available From")
-    end_time = st.time_input("Available Until")
-
-    if st.button("Add Availability"):
-        if start_time >= end_time:
-            st.error("Invalid time range.")
-        else:
+# Upcoming Bookings
+st.subheader("Upcoming Bookings")
+try:
+    b_res = supabase.table("bookings").select("*").eq("tutor_id", profile.get("id")).execute()
+    now = datetime.now()
+    upcoming = []
+    if b_res.data:
+        for b in b_res.data:
+            slot = b.get("slot")
             try:
-                supabase.table("tutor_availability").insert({
-                    "tutor_id": profile["id"],
-                    "available_date": avail_date.isoformat(),
-                    "start_time": start_time.strftime("%H:%M:%S"),
-                    "end_time": end_time.strftime("%H:%M:%S")
-                }).execute()
+                slot_dt = datetime.strptime(slot, "%Y-%m-%d %H:%M")
+            except Exception:
+                slot_dt = None
+            if slot_dt and slot_dt >= now:
+                upcoming.append((slot_dt, b))
 
-                st.success("Availability added.")
-                safe_rerun()
-            except Exception as e:
-                st.error(f"Failed to add availability: {e}")
+    if upcoming:
+        upcoming.sort(key=lambda x: x[0])
+        for slot_dt, b in upcoming:
+            st.write(f"- {slot_dt.strftime('%Y-%m-%d %H:%M')} — {b.get('notes', '')}")
+    else:
+        st.info("No upcoming bookings.")
+except Exception as e:
+    st.error(f"Could not fetch bookings: {e}")
 
-    # Show existing availability for this tutor
-    try:
-        avail_res = supabase.table("tutor_availability") \
-            .select("*") \
-            .eq("tutor_id", profile["id"]) \
-            .order("available_date") \
-            .execute()
+# Upcoming Unavailability
+st.subheader("Upcoming Unavailability")
+try:
+    ua_res = supabase.table("tutor_unavailability").select("*").eq("tutor_id", profile.get("id")).order("start_date").execute()
+    upcoming_ua = []
+    if ua_res.data:
+        for u in ua_res.data:
+            try:
+                end_d = datetime.fromisoformat(u.get("end_date"))
+            except Exception:
+                try:
+                    end_d = datetime.strptime(u.get("end_date"), "%Y-%m-%d")
+                except Exception:
+                    end_d = None
+            if end_d and end_d.date() >= date.today():
+                upcoming_ua.append(u)
 
-        if avail_res.data:
-            st.subheader("My Scheduled Availability")
-            for a in avail_res.data:
-                st.write(f"{a['available_date']} | {a['start_time']} – {a['end_time']}")
-        else:
-            st.info("No availability scheduled yet.")
-    except Exception as e:
-        st.error(f"Could not load availability: {e}")
-
-# (Language fields removed from UI for now)
+    if upcoming_ua:
+        for u in upcoming_ua:
+            times = "(full day)"
+            if u.get("start_time") and u.get("end_time"):
+                times = f"{u.get('start_time')} – {u.get('end_time')}"
+            st.write(f"- {u.get('start_date')} → {u.get('end_date')} {times} — {u.get('reason', '')}")
+    else:
+        st.info("No upcoming unavailability.")
+except Exception as e:
+    st.error(f"Could not fetch unavailability: {e}")
