@@ -1,8 +1,6 @@
+```python
 import streamlit as st
-from utils.ui import hide_sidebar
-
-# Apply global hide-sidebar config for consistent layout
-hide_sidebar()
+st.set_page_config(page_title="Admin")
 from datetime import datetime, timedelta
 from utils.database import supabase
 from utils.email import send_email
@@ -210,3 +208,5 @@ for booking in bookings_res.data:
                 safe_rerun()
         except Exception as e:
             st.error(f"Failed to cancel booking: {e}")
+
+```

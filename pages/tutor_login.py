@@ -1,4 +1,6 @@
 import streamlit as st
+from utils.ui import hide_sidebar
+hide_sidebar()
 st.set_page_config(page_title="Tutor Login")
 # Hide Streamlit Pages list in the sidebar for a cleaner login
 st.markdown(

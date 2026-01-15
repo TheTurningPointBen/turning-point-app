@@ -1,4 +1,6 @@
 import streamlit as st
+from utils.ui import hide_sidebar
+hide_sidebar()
 st.set_page_config(page_title="Tutor Unavailability")
 from datetime import date
 from utils.database import supabase
@@ -22,6 +24,55 @@ if not profile:
 if not profile.get("approved"):
     st.warning("Your tutor profile is pending approval.")
     st.stop()
+
+# Top-left Back button to return to Tutor Dashboard
+back_col, main_col = st.columns([1, 9])
+with back_col:
+    if st.button("⬅️ Back", key="back_to_tutor_dashboard_unavailability"):
+        try:
+            st.switch_page("pages/tutor.py")
+        except Exception:
+            try:
+                st.experimental_rerun()
+            except Exception:
+                pass
+
+    st.markdown(
+        """
+        <style>
+        .tutor-back-space{height:4px}
+        </style>
+        <div class="tutor-back-space"></div>
+        <script>
+        (function(){
+            const label = '⬅️ Back';
+            const apply = ()=>{
+                const btns = Array.from(document.querySelectorAll('button'));
+                for(const b of btns){
+                    if(b.innerText && b.innerText.trim()===label){
+                        b.style.background = '#0d6efd';
+                        b.style.color = '#ffffff';
+                        b.style.padding = '4px 8px';
+                        b.style.borderRadius = '6px';
+                        b.style.border = '0';
+                        b.style.fontWeight = '600';
+                        b.style.boxShadow = 'none';
+                        b.style.cursor = 'pointer';
+                        b.style.fontSize = '12px';
+                        b.style.lineHeight = '16px';
+                        b.style.display = 'inline-block';
+                        b.style.margin = '0 8px 0 0';
+                        b.style.verticalAlign = 'middle';
+                        break;
+                    }
+                }
+            };
+            setTimeout(apply, 200);
+        })();
+        </script>
+        """,
+        unsafe_allow_html=True,
+    )
 
 st.subheader("Mark when you are UNAVAILABLE")
 

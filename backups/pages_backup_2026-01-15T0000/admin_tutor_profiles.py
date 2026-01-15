@@ -1,7 +1,6 @@
+```python
 import streamlit as st
-from utils.ui import hide_sidebar
-
-hide_sidebar()
+st.set_page_config(page_title="Admin Tutor Profiles")
 from utils.database import supabase
 
 st.title("Tutor Profiles — Admin")
@@ -60,50 +59,8 @@ try:
 except Exception as e:
     st.error(f"Could not load tutors: {e}")
     st.stop()
-# Show unconfirmed tutors (need admin confirmation)
-unconfirmed = [t for t in tutors if not t.get("approved")]
 
-st.header("Unconfirmed Tutor Profiles")
-if not unconfirmed:
-    st.info("No tutor profiles awaiting confirmation")
-else:
-    for t in unconfirmed:
-        tid = t.get('id')
-        name = f"{t.get('name') or ''} {t.get('surname') or ''}".strip()
-        with st.container():
-            cols = st.columns([8,2])
-            with cols[0]:
-                st.subheader(name or '(no name)')
-                st.write(f"Email: {t.get('email') or '(no email)'} | Phone: {t.get('phone') or '(no phone)'}")
-                st.write(f"City: {t.get('city') or '(no city)'} | Roles: {t.get('roles') or '(none)'}")
-                if t.get('notes'):
-                    st.write(f"Notes: {t.get('notes')}")
-            with cols[1]:
-                if st.button("Confirm", key=f"confirm_{tid}"):
-                    try:
-                        # attempt to set approved=True (DB may or may not include the column)
-                        supabase.table('tutors').update({"approved": True}).eq('id', tid).execute()
-                        st.success(f"Confirmed {name}")
-                        try:
-                            st.experimental_rerun()
-                        except Exception:
-                            pass
-                    except Exception as e:
-                        st.error(f"Failed to confirm tutor: {e}")
-                if st.button("Deny", key=f"deny_{tid}"):
-                    try:
-                        supabase.table('tutors').update({"approved": False}).eq('id', tid).execute()
-                        st.info(f"Denied {name}")
-                        try:
-                            st.experimental_rerun()
-                        except Exception:
-                            pass
-                    except Exception as e:
-                        st.error(f"Failed to deny tutor: {e}")
-
-st.markdown("---")
-
-# Keep existing editor for confirmed tutors below
+# Only include tutors that are approved (confirmed in Tutor Confirmation)
 confirmed = [t for t in tutors if t.get("approved")]
 
 if not confirmed:

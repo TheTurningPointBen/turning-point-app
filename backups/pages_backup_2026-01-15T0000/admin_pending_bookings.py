@@ -1,7 +1,6 @@
+```python
 import streamlit as st
-from utils.ui import hide_sidebar
-
-hide_sidebar()
+st.set_page_config(page_title="Admin Pending Bookings")
 from datetime import datetime
 from utils.database import supabase
 
@@ -132,3 +131,5 @@ for booking in bookings:
                 safe_rerun()
         except Exception as e:
             st.error(f"Failed to cancel booking: {e}")
+
+```

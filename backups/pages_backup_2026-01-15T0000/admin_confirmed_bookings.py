@@ -1,7 +1,6 @@
+```python
 import streamlit as st
-from utils.ui import hide_sidebar
-
-hide_sidebar()
+st.set_page_config(page_title="Admin Confirmed Bookings")
 from datetime import datetime
 from utils.database import supabase
 
@@ -166,3 +165,5 @@ for b in bookings:
         st.info(f"Parent email: {parent_email} — notification may not have been sent")
     else:
         st.warning("Parent email not found — parent may not have been notified")
+
+```

@@ -1,6 +1,5 @@
+```python
 import streamlit as st
-from utils.ui import hide_sidebar
-hide_sidebar()
 st.set_page_config(page_title="Admin Tutors")
 from supabase import create_client
 from config import SUPABASE_URL, SUPABASE_KEY
@@ -20,7 +19,7 @@ with back_col:
         <style>
         .admin-back-space{height:4px}
         </style>
-        <div class="admin-back-space"></div>
+        <div class="admin-back_space"></div>
         <script>
         (function(){
             const label = '⬅️ Back';
@@ -84,3 +83,5 @@ for tutor in res.data:
 
                 st.success("Tutor approved.")
                 safe_rerun()
+
+```

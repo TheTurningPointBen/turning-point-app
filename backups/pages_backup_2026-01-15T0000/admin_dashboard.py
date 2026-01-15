@@ -1,7 +1,6 @@
+```python
 import streamlit as st
-from utils.ui import hide_sidebar
-
-hide_sidebar()
+st.set_page_config(page_title="Admin Dashboard")
 from datetime import date, datetime
 import math
 import pandas as pd
@@ -13,32 +12,12 @@ if "admin" not in st.session_state:
     st.warning("Please log in as admin on the Admin page first.")
     st.stop()
 
-def _logout():
-    try:
-        supabase.auth.sign_out()
-    except Exception:
-        pass
-    for k in list(st.session_state.keys()):
-        if k != "_is_running":
-            try:
-                del st.session_state[k]
-            except Exception:
-                pass
-    try:
-        st.query_params = {}
-    except Exception:
-        pass
-    try:
-        st.experimental_rerun()
-    except Exception:
-        st.markdown("<script>window.location.href='/'</script>", unsafe_allow_html=True)
-
 # Top icon navigation: Pending / Confirmed / Admin Area
 if "admin_dashboard_view" not in st.session_state:
     st.session_state.admin_dashboard_view = "pending"
 
 # Single-row layout: five equal columns across the page
-col1, col2, col3, col4, col5, col6 = st.columns([1,1,1,1,1,1])
+col1, col2, col3, col4, col5 = st.columns([1,1,1,1,1])
 with col1:
     if st.button("📥 Pending", key="view_pending"):
         try:
@@ -69,7 +48,7 @@ with col3:
             except Exception:
                 pass
 with col4:
-    if st.button("✏️ Edit Bookings", key="view_tutor_confirmation"):
+    if st.button("📝 Tutor Confirmation", key="view_tutor_confirmation"):
         try:
             st.switch_page("pages/admin_tutor_confirmation.py")
         except Exception:
@@ -84,9 +63,6 @@ with col5:
             st.experimental_rerun()
         except Exception:
             pass
-with col6:
-    if st.button("🔒 Logout", key="admin_logout_icon"):
-        st.session_state["_logout_pending"] = True
 
 # Compact, professional styling for the top dashboard buttons (single horizontal row)
 st.markdown(
@@ -125,28 +101,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 st.markdown("---")
-
-# Logout confirmation dialog
-if st.session_state.get("_logout_pending"):
-    st.warning("Do you wish to log out?")
-    ycol, ncol = st.columns(2)
-    with ycol:
-        if st.button("Yes — Log out", key="admin_confirm_logout_yes"):
-            st.session_state["_logout_confirmed"] = True
-    with ncol:
-        if st.button("No — Stay", key="admin_confirm_logout_no"):
-            st.session_state.pop("_logout_pending", None)
-            try:
-                st.experimental_rerun()
-            except Exception:
-                pass
-
-# Perform logout if confirmed (single-click)
-if st.session_state.get("_logout_confirmed"):
-    try:
-        _logout()
-    finally:
-        st.session_state.pop("_logout_confirmed", None)
 
 # --- Build query ---
 query = supabase.table("bookings").select("*")
@@ -230,3 +184,5 @@ else:
             st.write(tutor_info)
 
     # Grouping: show bookings per Tutor or Parent (selector moved above results)
+
+```

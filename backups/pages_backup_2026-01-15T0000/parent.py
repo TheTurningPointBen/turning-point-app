@@ -1,8 +1,6 @@
+```python
 import streamlit as st
-from utils.ui import hide_sidebar
-
-# Apply shared hide-sidebar helper
-hide_sidebar()
+st.set_page_config(page_title="Parent")
 # Hide Streamlit Pages list in the sidebar for a cleaner login
 st.markdown(
     """
@@ -139,3 +137,4 @@ if st.session_state.get("role") == "parent" or "user" in st.session_state:
         """,
         unsafe_allow_html=True,
     )
+```

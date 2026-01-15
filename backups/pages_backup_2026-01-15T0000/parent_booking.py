@@ -1,6 +1,5 @@
+```python
 import streamlit as st
-from utils.ui import hide_sidebar
-hide_sidebar()
 st.set_page_config(page_title="Parent Booking")
 from datetime import datetime, timedelta, time
 from utils.database import supabase
@@ -300,3 +299,4 @@ if st.session_state.get("role") == "parent" or "user" in st.session_state:
         """,
         unsafe_allow_html=True,
     )
+```

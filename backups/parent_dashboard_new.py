@@ -1,7 +1,5 @@
 import streamlit as st
-from utils.ui import hide_sidebar
-
-hide_sidebar()
+st.set_page_config(page_title="Parent Dashboard")
 from utils.database import supabase
 
 st.title("Parent Dashboard")
@@ -72,8 +70,7 @@ st.markdown(
         obs.observe(document.body, { childList: true, subtree: true });
     })();
     </script>
-    ''',
-    unsafe_allow_html=True,
+    '''
 )
 
 st.markdown("---")

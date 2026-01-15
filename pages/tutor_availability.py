@@ -1,4 +1,6 @@
 import streamlit as st
+from utils.ui import hide_sidebar
+hide_sidebar()
 from datetime import date
 from utils.database import supabase
 

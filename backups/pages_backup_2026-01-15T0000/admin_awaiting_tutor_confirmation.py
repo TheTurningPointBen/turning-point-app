@@ -1,7 +1,6 @@
+```python
 import streamlit as st
-from utils.ui import hide_sidebar
-
-hide_sidebar()
+st.set_page_config(page_title="Awaiting Tutor Confirmation — Admin")
 from datetime import datetime
 from utils.database import supabase
 from utils.email import send_email
@@ -165,3 +164,5 @@ for b in bookings:
                         pass
             except Exception as e:
                 st.error(f"Failed to cancel booking: {e}")
+
+```
