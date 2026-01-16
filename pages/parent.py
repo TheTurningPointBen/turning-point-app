@@ -87,6 +87,36 @@ with tab1:
                         with st.expander("Technical Details"):
                             st.exception(e)
 
+    # -------------------------
+    # FORGOT PASSWORD
+    # -------------------------
+    with st.expander("Forgot password?"):
+        fp_email = st.text_input("Enter your account email to receive reset instructions", key="parent_forgot_email")
+        if st.button("Send reset email", key="parent_forgot_send"):
+            if not fp_email:
+                st.error("Please enter your email.")
+            else:
+                try:
+                    # Try the supabase client reset APIs; be defensive about client versions
+                    try:
+                        res = supabase.auth.reset_password_for_email(fp_email)
+                    except Exception:
+                        try:
+                            res = supabase.auth.api.reset_password_for_email(fp_email)
+                        except Exception:
+                            res = None
+
+                    if res is None:
+                        st.warning("Password reset request could not be sent — please contact support.")
+                    else:
+                        st.success("If that email exists, password reset instructions have been sent.")
+                except Exception as e:
+                    st.error("Failed to request password reset. Please try again later.")
+                    try:
+                        st.exception(e)
+                    except Exception:
+                        pass
+
 with tab2:
     st.subheader("Parent Registration")
     reg_email = st.text_input("Email", key="parent_reg_email")

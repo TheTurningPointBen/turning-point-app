@@ -148,9 +148,35 @@ try:
 
     if upcoming:
         upcoming.sort(key=lambda x: x[0])
+        # Build a clear display for each upcoming booking with requested fields
         for slot_dt, b in upcoming:
-            notes = b.get('notes') or b.get('subject') or ''
-            st.write(f"- {slot_dt.strftime('%Y-%m-%d %H:%M')} — {notes}")
+            # derive date/time
+            date_str = slot_dt.date().isoformat() if slot_dt else ''
+            time_str = slot_dt.time().strftime('%H:%M') if slot_dt else ''
+
+            # subject/notes
+            subject = b.get('subject') or b.get('notes') or ''
+
+            # child name / surname (try multiple possible fields)
+            child_name = (b.get('child_name') or b.get('child_firstname') or b.get('child') or '').strip()
+            child_surname = (b.get('child_surname') or b.get('child_lastname') or '').strip()
+
+            # school may be on booking or on parent record
+            school = b.get('school') or ''
+            # try to enrich school from parent if missing
+            try:
+                parent_id = b.get('parent_id') or b.get('parent') or None
+                if (not school) and parent_id:
+                    p_res = supabase.table('parents').select('school').eq('id', parent_id).execute()
+                    if p_res.data and len(p_res.data) > 0:
+                        school = p_res.data[0].get('school') or ''
+            except Exception:
+                pass
+
+            # render compact row: Date | Time | Subject | Child (name surname) | School
+            school_display = school or '—'
+            child_full = (child_name + ' ' + child_surname).strip() or '—'
+            st.write(f"- {date_str} | {time_str} | {subject} | {child_full} | {school_display}")
     else:
         st.info("No upcoming bookings.")
 except Exception as e:

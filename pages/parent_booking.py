@@ -81,19 +81,81 @@ duration = st.number_input("Duration (minutes)", min_value=30, max_value=180, va
 extra_time = st.number_input("Extra Time (minutes)", min_value=0, max_value=60, value=0)
 role_required = st.selectbox("Role Required", ["Reader", "Scribe", "Both"]) 
 
-# Show tutors who are approved and match the required role
+# Show tutors who are approved and match the required role and language/availability
+def _language_column_for(subject_text: str):
+    if not subject_text:
+        return None
+    s = subject_text.strip().lower()
+    mapping = {
+        'afrikaans': 'afrikaans',
+        'isizulu': 'isizulu',
+        'zulu': 'isizulu',
+        'setswana': 'setswana',
+        'isixhosa': 'isixhosa',
+        'xhosa': 'isixhosa',
+        'french': 'french'
+    }
+    return mapping.get(s)
+
+def _tutor_is_available(tutor_id, exam_date, start_time_obj, duration_minutes):
+    try:
+        # find any unavailability entries that cover the exam date
+        u_res = supabase.table('tutor_unavailability').select('*').eq('tutor_id', tutor_id).lte('start_date', exam_date.isoformat()).gte('end_date', exam_date.isoformat()).execute()
+        entries = u_res.data or []
+        if not entries:
+            return True
+        # booking time
+        from datetime import datetime, time
+        b_start = start_time_obj
+        # compute booking end time
+        bhour, bmin = b_start.hour, b_start.minute
+        import datetime as _dt
+        bstart_dt = _dt.datetime.combine(exam_date, b_start)
+        bend_dt = bstart_dt + _dt.timedelta(minutes=duration_minutes)
+
+        for e in entries:
+            # if times are not specified, tutor is unavailable for full day
+            if not e.get('start_time') or not e.get('end_time'):
+                return False
+            # parse times
+            try:
+                es = _dt.datetime.strptime(e.get('start_time'), '%H:%M:%S').time()
+                ee = _dt.datetime.strptime(e.get('end_time'), '%H:%M:%S').time()
+            except Exception:
+                return False
+            estart_dt = _dt.datetime.combine(exam_date, es)
+            eend_dt = _dt.datetime.combine(exam_date, ee)
+            # if time ranges overlap => unavailable
+            latest_start = max(bstart_dt, estart_dt)
+            earliest_end = min(bend_dt, eend_dt)
+            overlap = (earliest_end - latest_start).total_seconds()
+            if overlap > 0:
+                return False
+        return True
+    except Exception:
+        # On error, be conservative and mark unavailable
+        return False
+
 try:
-    tutors_res = supabase.table("tutors") \
-        .select("*") \
-        .eq("approved", True) \
-        .execute()
+    tutors_res = supabase.table("tutors").select("*").eq("approved", True).execute()
+    all_tutors = tutors_res.data or []
 
-    eligible_tutors = [
-        t for t in (tutors_res.data or [])
-        if t.get("roles") in [role_required, "Both"]
-    ]
+    lang_col = _language_column_for(subject)
 
-    # Tutor listings are admin-facing; do not show tutor counts or lists to parents.
+    eligible_tutors = []
+    for t in all_tutors:
+        # role match
+        if t.get("roles") not in [role_required, "Both"]:
+            continue
+        # language match (if applicable)
+        if lang_col:
+            if not t.get(lang_col):
+                continue
+        # availability check
+        if not _tutor_is_available(t.get('id'), exam_date, start_time, duration):
+            continue
+        eligible_tutors.append(t)
+
 except Exception as e:
     st.error(f"Could not load tutors: {e}")
 

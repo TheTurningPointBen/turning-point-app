@@ -64,6 +64,35 @@ with tab1:
             st.error("Login exception. Check console for details.")
             st.exception(e)
 
+    # -------------------------
+    # FORGOT PASSWORD
+    # -------------------------
+    with st.expander("Forgot password?"):
+        fp_email = st.text_input("Enter your admin account email to receive reset instructions", key="admin_forgot_email")
+        if st.button("Send reset email", key="admin_forgot_send"):
+            if not fp_email:
+                st.error("Please enter your email.")
+            else:
+                try:
+                    try:
+                        res = supabase.auth.reset_password_for_email(fp_email)
+                    except Exception:
+                        try:
+                            res = supabase.auth.api.reset_password_for_email(fp_email)
+                        except Exception:
+                            res = None
+
+                    if res is None:
+                        st.warning("Password reset request could not be sent — please contact support.")
+                    else:
+                        st.success("If that email exists, password reset instructions have been sent.")
+                except Exception as e:
+                    st.error("Failed to request password reset. Please try again later.")
+                    try:
+                        st.exception(e)
+                    except Exception:
+                        pass
+
 with tab2:
     st.subheader("Admin Registration")
     reg_email = st.text_input("Email", key="admin_reg_email")

@@ -69,6 +69,36 @@ with tab1:
         except Exception:
             st.error("Invalid login credentials.")
 
+    # -------------------------
+    # FORGOT PASSWORD
+    # -------------------------
+    with st.expander("Forgot password?"):
+        fp_email = st.text_input("Enter your account email to receive reset instructions", key="forgot_email")
+        if st.button("Send reset email", key="forgot_send"):
+            if not fp_email:
+                st.error("Please enter your email.")
+            else:
+                try:
+                    # Try common supabase client methods for password reset
+                    try:
+                        res = supabase.auth.reset_password_for_email(fp_email)
+                    except Exception:
+                        try:
+                            res = supabase.auth.api.reset_password_for_email(fp_email)
+                        except Exception:
+                            res = None
+
+                    if res is None:
+                        st.warning("Password reset request could not be sent — please check server logs or contact admin.")
+                    else:
+                        st.success("If that email exists in our system, password reset instructions have been sent.")
+                except Exception as e:
+                    st.error("Failed to request password reset. Please try again later.")
+                    try:
+                        st.exception(e)
+                    except Exception:
+                        pass
+
 # -------------------------
 # REGISTER
 # -------------------------

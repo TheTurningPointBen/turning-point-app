@@ -81,6 +81,14 @@ if not profile:
     phone = st.text_input("Phone Number")
     town = st.text_input("Town")
     city = st.text_input("City")
+    st.markdown("---")
+    st.subheader("Languages")
+    st.info("All exams you currently will Read or Scribe will be in English.\nPlease choose languages below that you can also Read and Scribe in proficiently. Leave blank if none apply.")
+    afrikaans = st.checkbox("Afrikaans")
+    isizulu = st.checkbox("IsiZulu")
+    setswana = st.checkbox("Setswana")
+    isixhosa = st.checkbox("IsiXhosa")
+    french = st.checkbox("French")
     transport = st.checkbox("I have my own transport")
     roles = st.selectbox("Role", ["Reader", "Scribe", "Both"])
 
@@ -97,7 +105,12 @@ if not profile:
                     "town": town,
                     "city": city,
                     "transport": transport,
-                    "roles": roles
+                    "roles": roles,
+                    "afrikaans": bool(afrikaans),
+                    "isizulu": bool(isizulu),
+                    "setswana": bool(setswana),
+                    "isixhosa": bool(isixhosa),
+                    "french": bool(french)
                 }).execute()
 
                 if getattr(insert_res, 'error', None) is None:
@@ -118,6 +131,24 @@ st.write(f"**Transport:** {'Yes' if profile.get('transport') else 'No'}")
 st.write(f"**Roles:** {profile.get('roles')}")
 st.write(f"**Approved:** {profile.get('approved')}")
 
+# Languages display: English is the default; show any additional selected languages
+langs = []
+if profile.get('afrikaans'):
+    langs.append('Afrikaans')
+if profile.get('isizulu'):
+    langs.append('IsiZulu')
+if profile.get('setswana'):
+    langs.append('Setswana')
+if profile.get('isixhosa'):
+    langs.append('IsiXhosa')
+if profile.get('french'):
+    langs.append('French')
+
+if langs:
+    st.write(f"**Languages:** English; {', '.join(langs)}")
+else:
+    st.write("**Languages:** English")
+
 if st.button("Edit Profile"):
     try:
         st.session_state._editing_tutor_profile = True
@@ -135,23 +166,48 @@ if st.session_state.get("_editing_tutor_profile"):
     transport = st.checkbox("I have my own transport", value=bool(profile.get('transport')))
     roles = st.selectbox("Role", ["Reader", "Scribe", "Both"], index=0 if not profile.get('roles') else (0 if profile.get('roles')=='Reader' else (1 if profile.get('roles')=='Scribe' else 2)))
 
-    if st.button("Save Changes"):
-        try:
-            update_res = supabase.table("tutors").update({
-                "name": name,
-                "surname": surname,
-                "phone": phone,
-                "town": town,
-                "city": city,
-                "transport": transport,
-                "roles": roles
-            }).eq("id", profile.get('id')).execute()
+    st.markdown("---")
+    st.subheader("Languages")
+    st.info("All exams you currently will Read or Scribe will be in English.\nPlease choose languages below that you can also Read and Scribe in proficiently. Leave blank if none apply.")
+    afrikaans = st.checkbox("Afrikaans", value=bool(profile.get('afrikaans')))
+    isizulu = st.checkbox("IsiZulu", value=bool(profile.get('isizulu')))
+    setswana = st.checkbox("Setswana", value=bool(profile.get('setswana')))
+    isixhosa = st.checkbox("IsiXhosa", value=bool(profile.get('isixhosa')))
+    french = st.checkbox("French", value=bool(profile.get('french')))
 
-            if getattr(update_res, 'error', None) is None:
-                st.success("Profile updated.")
-                del st.session_state["_editing_tutor_profile"]
-                safe_rerun()
-            else:
-                st.error(f"Failed to update: {getattr(update_res, 'error', None)}")
-        except Exception as e:
-            st.error(f"Update error: {e}")
+    if st.button("Save Changes"):
+        # Build payload and only include keys that exist in the tutors row
+        payload = {}
+        existing = set(profile.keys() or [])
+        candidates = {
+            "name": name,
+            "surname": surname,
+            "phone": phone,
+            "town": town,
+            "city": city,
+            "transport": transport,
+            "roles": roles,
+            "afrikaans": bool(afrikaans),
+            "isizulu": bool(isizulu),
+            "setswana": bool(setswana),
+            "isixhosa": bool(isixhosa),
+            "french": bool(french)
+        }
+        for k, v in candidates.items():
+            if k in existing:
+                payload[k] = v
+
+        if not payload:
+            st.error("No updatable columns found for this tutor in the database.")
+        else:
+            try:
+                update_res = supabase.table("tutors").update(payload).eq("id", profile.get('id')).execute()
+
+                if getattr(update_res, 'error', None) is None:
+                    st.success("Profile updated.")
+                    del st.session_state["_editing_tutor_profile"]
+                    safe_rerun()
+                else:
+                    st.error(f"Failed to update: {getattr(update_res, 'error', None)}")
+            except Exception as e:
+                st.error(f"Update error: {e}")

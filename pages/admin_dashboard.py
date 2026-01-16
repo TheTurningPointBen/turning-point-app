@@ -79,11 +79,14 @@ with col4:
                 pass
 with col5:
     if st.button("⚙ Admin Area", key="view_area"):
-        st.session_state.admin_dashboard_view = "area"
         try:
-            st.experimental_rerun()
+            st.switch_page("pages/admin_admin_area.py")
         except Exception:
-            pass
+            try:
+                st.session_state.admin_dashboard_view = "area"
+                st.experimental_rerun()
+            except Exception:
+                pass
 with col6:
     if st.button("🔒 Logout", key="admin_logout_icon"):
         st.session_state["_logout_pending"] = True

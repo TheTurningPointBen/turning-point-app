@@ -133,6 +133,14 @@ else:
                 approved = st.checkbox("Approved", value=bool(tutor.get('approved')))
                 notes = st.text_area("Notes", value=tutor.get('notes') or "")
 
+                st.markdown("---")
+                st.subheader("Languages")
+                afrikaans = st.checkbox("Afrikaans", value=bool(tutor.get('afrikaans')))
+                isizulu = st.checkbox("IsiZulu", value=bool(tutor.get('isizulu')))
+                setswana = st.checkbox("Setswana", value=bool(tutor.get('setswana')))
+                isixhosa = st.checkbox("IsiXhosa", value=bool(tutor.get('isixhosa')))
+                french = st.checkbox("French", value=bool(tutor.get('french')))
+
                 submitted = st.form_submit_button("Save changes")
                 if submitted:
                     # Build payload only with keys that exist in the current tutor record
@@ -147,6 +155,11 @@ else:
                         "roles": roles,
                         "approved": approved,
                         "notes": notes,
+                        "afrikaans": bool(afrikaans),
+                        "isizulu": bool(isizulu),
+                        "setswana": bool(setswana),
+                        "isixhosa": bool(isixhosa),
+                        "french": bool(french),
                     }
                     for k, v in fields.items():
                         if k in existing_keys:
