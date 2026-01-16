@@ -1,7 +1,8 @@
 import streamlit as st
 from utils.ui import hide_sidebar
 
-# Hide sidebar and set layout at the very top of the app
+# Configure the app once (must be called only once) then inject CSS
+st.set_page_config(page_title="The Turning Point", layout="wide", initial_sidebar_state="collapsed")
 hide_sidebar()
 
 # Custom CSS for clean UI

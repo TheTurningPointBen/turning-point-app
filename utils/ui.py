@@ -52,11 +52,9 @@ def hide_sidebar():
     Use this helper at the top of every page to ensure the Pages list
     and sidebar toggle are not visible to non-admin users.
     """
-    try:
-        st.set_page_config(layout="wide", initial_sidebar_state="collapsed")
-    except Exception:
-        # set_page_config can only be called once; ignore if already set
-        pass
+    # Do NOT call st.set_page_config() here — it must only be called once
+    # from the main entrypoint (streamlit_app.py). Calling it from every
+    # page causes a Streamlit runtime error during deploy.
 
     st.markdown(
         """
