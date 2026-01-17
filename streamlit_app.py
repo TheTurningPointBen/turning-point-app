@@ -77,18 +77,58 @@ col1, col2, col3 = st.columns(3)
 with col1:
     if st.button("👤 Parent"):
         try:
-            st.switch_page("pages/parent.py")
+            st.session_state['page'] = 'parent'
+            st.session_state.role = 'parent'
+            try:
+                st.experimental_rerun()
+            except Exception:
+                pass
         except Exception:
             st.session_state.role = 'parent'
 with col2:
     if st.button("🎓 Tutor"):
         try:
-            st.switch_page("pages/tutor_login.py")
+            st.session_state['page'] = 'tutor_login'
+            st.session_state.role = 'tutor'
+            try:
+                st.experimental_rerun()
+            except Exception:
+                pass
         except Exception:
             st.session_state.role = 'tutor'
 with col3:
     if st.button("🔑 Admin"):
         try:
-            st.switch_page("pages/admin.py")
+            st.session_state['page'] = 'admin'
+            st.session_state.role = 'admin'
+            try:
+                st.experimental_rerun()
+            except Exception:
+                pass
         except Exception:
             st.session_state.role = 'admin'
+
+
+# Simple dispatcher: if a page key is set in session, execute the matching
+# module under `pages_disabled/` so navigation works without Streamlit Pages.
+import runpy
+import os
+
+def _dispatch_page():
+    page = st.session_state.get('page')
+    if not page or page in ('home', 'landing'):
+        return
+
+    candidate = os.path.join(os.path.dirname(__file__), 'pages_disabled', f"{page}.py")
+    if not os.path.isfile(candidate):
+        st.error(f"Page not found: {page}")
+        return
+
+    try:
+        runpy.run_path(candidate, run_name="__main__")
+        st.stop()
+    except Exception as e:
+        st.error(f"Failed to load page '{page}': {e}")
+
+
+_dispatch_page()
