@@ -5,6 +5,30 @@ from utils.session import init_session
 # Ensure session state defaults exist for all pages
 init_session()
 
+# If the user is not authenticated, ensure the landing page stays as the root
+# (prevents refreshing on a subpage from showing the Pages sidebar).
+if not st.session_state.get("authenticated"):
+    st.markdown(
+        """
+        <script>
+        (function(){
+            try{
+                // If we're not at the root path, replace the URL to root without reloading
+                if(window.location.pathname !== '/'){
+                    history.replaceState(null, '', '/');
+                }
+                // Hide the Streamlit sidebar if it exists (extra safety)
+                setTimeout(()=>{
+                    const aside = document.querySelector('aside');
+                    if(aside) aside.style.display = 'none';
+                }, 50);
+            }catch(e){}
+        })();
+        </script>
+        """,
+        unsafe_allow_html=True,
+    )
+
 # Configure the app once (must be called only once) then inject CSS
 st.set_page_config(page_title="The Turning Point", layout="wide", initial_sidebar_state="collapsed")
 hide_sidebar()
