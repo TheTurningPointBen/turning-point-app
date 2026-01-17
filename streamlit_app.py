@@ -119,10 +119,16 @@ def _dispatch_page():
     if not page or page in ('home', 'landing'):
         return
 
-    candidate = os.path.join(os.path.dirname(__file__), 'pages_disabled', f"{page}.py")
+    base_dir = os.path.dirname(__file__)
+    # Prefer the active `pages/` directory (Streamlit multipage), fallback to
+    # `pages_disabled/` if present (older copy). This allows toggling without
+    # breaking the dispatcher.
+    candidate = os.path.join(base_dir, 'pages', f"{page}.py")
     if not os.path.isfile(candidate):
-        st.error(f"Page not found: {page}")
-        return
+        candidate = os.path.join(base_dir, 'pages_disabled', f"{page}.py")
+        if not os.path.isfile(candidate):
+            st.error(f"Page not found: {page}")
+            return
 
     try:
         runpy.run_path(candidate, run_name="__main__")
