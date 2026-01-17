@@ -1,7 +1,10 @@
 import streamlit as st
 from utils.ui import hide_sidebar
 hide_sidebar()
-st.set_page_config(page_title="Parent Dashboard")
+try:
+    st.set_page_config(page_title="Parent Dashboard")
+except Exception:
+    pass
 from utils.database import supabase
 
 st.title("Parent Dashboard")

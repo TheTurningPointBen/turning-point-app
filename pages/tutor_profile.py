@@ -1,7 +1,10 @@
 import streamlit as st
 from utils.ui import hide_sidebar
 hide_sidebar()
-st.set_page_config(page_title="Tutor Profile")
+try:
+    st.set_page_config(page_title="Tutor Profile")
+except Exception:
+    pass
 from utils.database import supabase
 
 st.title("My Tutor Profile")

@@ -1,7 +1,10 @@
 import streamlit as st
 from utils.ui import hide_sidebar
 hide_sidebar()
-st.set_page_config(page_title="Admin Tutors")
+try:
+    st.set_page_config(page_title="Admin Tutors")
+except Exception:
+    pass
 from utils.session import get_supabase
 
 supabase = get_supabase()

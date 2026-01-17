@@ -2,7 +2,10 @@ import streamlit as st
 from utils.ui import hide_sidebar
 hide_sidebar()
 
-st.set_page_config(page_title="Booking (removed)")
+try:
+    st.set_page_config(page_title="Booking (removed)")
+except Exception:
+    pass
 
 st.title("Booking")
 st.warning("This legacy Booking page has been removed. Use 'Make a Booking' from the Parent Dashboard instead.")

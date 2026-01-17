@@ -1,7 +1,10 @@
 import streamlit as st
 from utils.ui import hide_sidebar
 hide_sidebar()
-st.set_page_config(page_title="Tutor Dashboard")
+try:
+    st.set_page_config(page_title="Tutor Dashboard")
+except Exception:
+    pass
 from datetime import datetime, date
 from utils.database import supabase
 

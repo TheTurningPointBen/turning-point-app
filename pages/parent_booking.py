@@ -1,7 +1,10 @@
 import streamlit as st
 from utils.ui import hide_sidebar
 hide_sidebar()
-st.set_page_config(page_title="Parent Booking")
+try:
+    st.set_page_config(page_title="Parent Booking")
+except Exception:
+    pass
 from datetime import datetime, timedelta, time
 from utils.database import supabase
 from utils.email import send_admin_email
