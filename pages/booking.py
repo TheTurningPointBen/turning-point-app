@@ -10,7 +10,7 @@ st.warning("This legacy Booking page has been removed. Use 'Make a Booking' from
 if st.button("Go to Parent Booking"):
     try:
         try:
-            st.query_params = {}
+            st.experimental_set_query_params()
         except Exception:
             pass
         st.session_state.role = 'parent'

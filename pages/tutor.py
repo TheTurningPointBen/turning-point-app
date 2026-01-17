@@ -39,7 +39,7 @@ def _logout():
 
     # Clear query params and redirect to app root to ensure a clean logout
     try:
-        st.query_params = {}
+        st.experimental_set_query_params()
     except Exception:
         pass
 

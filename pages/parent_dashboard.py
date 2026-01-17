@@ -25,7 +25,7 @@ def _logout():
             except Exception:
                 pass
     try:
-        st.query_params = {}
+        st.experimental_set_query_params()
     except Exception:
         pass
     try:
