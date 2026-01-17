@@ -53,8 +53,10 @@ with tab1:
                         res = supabase.auth.sign_in_with_password({"email": email, "password": password})
                     
                     if getattr(res, 'user', None):
+                        st.session_state["authenticated"] = True
                         st.session_state["user"] = res.user
                         st.session_state["role"] = "parent"
+                        st.session_state["email"] = getattr(res.user, 'email', None)
                         st.success("Logged in successfully.")
                         try:
                             st.switch_page("pages/parent_dashboard.py")

@@ -26,10 +26,9 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-from supabase import create_client
-from config import SUPABASE_URL, SUPABASE_KEY
+from utils.session import get_supabase
 
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase = get_supabase()
 
 st.title("Tutor Portal")
 
@@ -58,8 +57,10 @@ with tab1:
             })
 
             if getattr(res, 'user', None):
+                st.session_state["authenticated"] = True
                 st.session_state["user"] = res.user
                 st.session_state["role"] = "tutor"
+                st.session_state["email"] = getattr(res.user, 'email', None)
                 st.success("Logged in successfully.")
                 try:
                     st.switch_page("pages/tutor.py")

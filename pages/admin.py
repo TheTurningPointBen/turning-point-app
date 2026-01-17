@@ -51,7 +51,10 @@ with tab1:
         try:
             res = supabase.auth.sign_in_with_password({"email": admin_email, "password": admin_password})
             if getattr(res, 'user', None):
-                st.session_state["admin"] = res.user
+                st.session_state["authenticated"] = True
+                st.session_state["user"] = res.user
+                st.session_state["role"] = "admin"
+                st.session_state["email"] = getattr(res.user, 'email', None)
                 st.success("Admin logged in")
                 try:
                     st.switch_page("pages/admin_dashboard.py")
@@ -114,7 +117,8 @@ with tab2:
                 st.error("Registration failed. Email may already exist.")
                 st.exception(e)
 
-if "admin" not in st.session_state:
+if not st.session_state.get("authenticated") or st.session_state.get("role") != "admin":
+    st.warning("Please log in as admin on the Admin page first.")
     st.stop()
 
 # --- FETCH PENDING BOOKINGS ---

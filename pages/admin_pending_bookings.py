@@ -7,7 +7,7 @@ from utils.database import supabase
 
 st.title("Pending Bookings — Admin")
 
-if "admin" not in st.session_state:
+if not st.session_state.get("authenticated") or st.session_state.get("role") != "admin":
     st.warning("Please log in as admin on the Admin page first.")
     st.stop()
 

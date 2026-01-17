@@ -2,10 +2,9 @@ import streamlit as st
 from utils.ui import hide_sidebar
 hide_sidebar()
 st.set_page_config(page_title="Admin Tutors")
-from supabase import create_client
-from config import SUPABASE_URL, SUPABASE_KEY
+from utils.session import get_supabase
 
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase = get_supabase()
 
 st.title("Admin – Tutor Approval")
 

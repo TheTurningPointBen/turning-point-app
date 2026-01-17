@@ -1,5 +1,9 @@
 import streamlit as st
 from utils.ui import hide_sidebar
+from utils.session import init_session
+
+# Ensure session state defaults exist for all pages
+init_session()
 
 # Configure the app once (must be called only once) then inject CSS
 st.set_page_config(page_title="The Turning Point", layout="wide", initial_sidebar_state="collapsed")

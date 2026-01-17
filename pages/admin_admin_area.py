@@ -7,12 +7,9 @@ hide_sidebar()
 
 st.title("Admin Area")
 
-if "admin" not in st.session_state:
+if not st.session_state.get("authenticated") or st.session_state.get("role") != "admin":
     st.warning("Please log in as admin on the Admin page first.")
-    try:
-        st.switch_page("pages/admin.py")
-    except Exception:
-        st.stop()
+    st.stop()
 
 # Top-left small Back button that returns to the Admin Dashboard
 back_col1, back_col2 = st.columns([1, 8])

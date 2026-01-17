@@ -10,7 +10,7 @@ st.title("Tutor Dashboard")
 # -------------------------
 # AUTH CHECK
 # -------------------------
-if "user" not in st.session_state:
+if not st.session_state.get("authenticated") or st.session_state.get("role") != "tutor":
     st.warning("Please login first.")
     try:
         st.switch_page("pages/tutor_login.py")
