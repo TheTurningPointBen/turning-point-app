@@ -42,6 +42,32 @@ if not st.session_state.get("authenticated"):
 
 hide_sidebar()
 
+# Dispatcher early so root app doesn't also render the same page (e.g. homepage)
+import runpy
+import os
+
+def _dispatch_page_early():
+    page = st.session_state.get('page')
+    if not page:
+        return
+
+    base_dir = os.path.dirname(__file__)
+    candidate = os.path.join(base_dir, 'pages', f"{page}.py")
+    if not os.path.isfile(candidate):
+        candidate = os.path.join(base_dir, 'pages_disabled', f"{page}.py")
+        if not os.path.isfile(candidate):
+            return
+
+    try:
+        runpy.run_path(candidate, run_name="__main__")
+        st.stop()
+    except Exception:
+        # Let the main dispatcher at the bottom show an error if needed
+        pass
+
+# Attempt early dispatch so the root app doesn't render the same page
+_dispatch_page_early()
+
 # Custom CSS for clean UI
 st.markdown("""
     <style>
