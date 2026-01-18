@@ -24,14 +24,15 @@ def _logout():
                 del st.session_state[k]
             except Exception:
                 pass
+    # Redirect to homepage and rerun so admin is taken to homepage after logout
     try:
-        st.experimental_set_query_params()
-    except Exception:
-        pass
-    try:
+        st.session_state['page'] = 'homepage'
         st.experimental_rerun()
     except Exception:
-        st.markdown("<script>window.location.href='/'</script>", unsafe_allow_html=True)
+        try:
+            st.markdown("<script>window.location.href='/'</script>", unsafe_allow_html=True)
+        except Exception:
+            pass
 
 # Top icon navigation: Pending / Confirmed / Admin Area
 if "admin_dashboard_view" not in st.session_state:

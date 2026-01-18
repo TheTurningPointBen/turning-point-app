@@ -41,15 +41,15 @@ def _logout():
                 pass
 
     # Clear query params and redirect to app root to ensure a clean logout
+    # Redirect to homepage and rerun so the landing UI is shown after logout
     try:
-        st.experimental_set_query_params()
-    except Exception:
-        pass
-
-    try:
+        st.session_state['page'] = 'homepage'
         st.experimental_rerun()
     except Exception:
-        st.markdown("<script>window.location.href='/'</script>", unsafe_allow_html=True)
+        try:
+            st.markdown("<script>window.location.href='/'</script>", unsafe_allow_html=True)
+        except Exception:
+            pass
         st.stop()
 
 if not profile:
