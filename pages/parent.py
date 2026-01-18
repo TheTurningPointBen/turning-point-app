@@ -51,7 +51,7 @@ with tab1:
                 try:
                     with st.spinner(f"Logging in... {f'(Attempt {attempt + 1}/{max_retries})' if attempt > 0 else ''}"):
                         res = supabase.auth.sign_in_with_password({"email": email, "password": password})
-                    
+
                     if getattr(res, 'user', None):
                         st.session_state["authenticated"] = True
                         st.session_state["user"] = res.user
@@ -79,8 +79,23 @@ with tab1:
                                 except Exception:
                                     st.write(str(res))
                     break  # Success, exit retry loop
-                    
+
                 except Exception as e:
+                    # If Supabase returns an authentication error (bad credentials),
+                    # surface it as a login failure rather than a transient connection issue.
+                    try:
+                        from supabase_auth.errors import AuthApiError
+                        is_auth_error = isinstance(e, AuthApiError)
+                    except Exception:
+                        is_auth_error = False
+
+                    if is_auth_error:
+                        st.error("Login failed. Check credentials or confirm your email.")
+                        with st.expander("Server response (debug)"):
+                            st.exception(e)
+                        break
+
+                    # For other errors (network/timeouts), retry a few times.
                     if attempt < max_retries - 1:
                         st.warning(f"Connection issue. Retrying in {retry_delay} seconds...")
                         time.sleep(retry_delay)
