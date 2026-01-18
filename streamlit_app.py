@@ -10,9 +10,15 @@ init_session()
 # Ensure a default `page` query param exists for unauthenticated users so
 # Streamlit's multipage auto-loading doesn't pick a sidebar page on refresh.
 if not st.session_state.get("authenticated"):
+    # Ensure unauthenticated sessions land on the homepage. Set a session
+    # key so our dispatcher will render `pages/homepage.py` on refresh.
     try:
-        if "page" not in st.query_params:
-            st.query_params["page"] = "home"
+        if st.session_state.get('page') != 'homepage':
+            st.session_state['page'] = 'homepage'
+            try:
+                st.experimental_rerun()
+            except Exception:
+                pass
     except Exception:
         # Fallback: client-side replace URL and hide sidebar
         st.markdown(
