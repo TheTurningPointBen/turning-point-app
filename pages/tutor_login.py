@@ -30,6 +30,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 from utils.session import get_supabase
+import json
 
 supabase = get_supabase()
 
@@ -49,11 +50,38 @@ def safe_rerun():
 with tab1:
     st.subheader("Tutor Login")
 
+    # Prefill email from localStorage if present (client-side)
+    st.markdown(
+        """
+        <script>
+        (function(){
+            try{
+                const v = localStorage.getItem('tp_email_tutor');
+                if(v){
+                    const labels = Array.from(document.querySelectorAll('label'));
+                    for(const l of labels){
+                        if(l.innerText && l.innerText.trim()==='Email'){
+                            const input = l.parentElement.querySelector('input') || l.nextElementSibling || l.parentElement.nextElementSibling.querySelector('input');
+                            if(input){ input.value = v; input.dispatchEvent(new Event('input',{bubbles:true})); break; }
+                        }
+                    }
+                }
+            }catch(e){}
+        })();
+        </script>
+        """,
+        unsafe_allow_html=True,
+    )
+
     email = st.text_input("Email", key="login_email")
+    remember = st.checkbox("Remember me", key="remember_tutor")
     password = st.text_input("Password", type="password", key="login_pw")
 
     if st.button("Login"):
         try:
+            # Save email to localStorage if user opted in
+            if remember:
+                st.markdown(f"<script>localStorage.setItem('tp_email_tutor', {json.dumps(email)});</script>", unsafe_allow_html=True)
             res = supabase.auth.sign_in_with_password({
                 "email": email,
                 "password": password

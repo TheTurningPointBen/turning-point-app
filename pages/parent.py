@@ -36,7 +36,31 @@ tab1, tab2 = st.tabs(["Login", "Register"])
 
 with tab1:
     st.subheader("Parent Login")
+    # Prefill email from localStorage if present (client-side)
+    st.markdown(
+        """
+        <script>
+        (function(){
+            try{
+                const v = localStorage.getItem('tp_email_parent');
+                if(v){
+                    const labels = Array.from(document.querySelectorAll('label'));
+                    for(const l of labels){
+                        if(l.innerText && l.innerText.trim()==='Email'){
+                            const input = l.parentElement.querySelector('input') || l.nextElementSibling || l.parentElement.nextElementSibling.querySelector('input');
+                            if(input){ input.value = v; input.dispatchEvent(new Event('input',{bubbles:true})); break; }
+                        }
+                    }
+                }
+            }catch(e){}
+        })();
+        </script>
+        """,
+        unsafe_allow_html=True,
+    )
+
     email = st.text_input("Email", key="parent_login_email")
+    remember = st.checkbox("Remember me", key="remember_parent")
     password = st.text_input("Password", type="password", key="parent_login_pw")
 
     if st.button("Login"):
@@ -50,6 +74,10 @@ with tab1:
             for attempt in range(max_retries):
                 try:
                     with st.spinner(f"Logging in... {f'(Attempt {attempt + 1}/{max_retries})' if attempt > 0 else ''}"):
+                        # Save email to localStorage if user opted in
+                        if remember:
+                            import json
+                            st.markdown(f"<script>localStorage.setItem('tp_email_parent', {json.dumps(email)});</script>", unsafe_allow_html=True)
                         res = supabase.auth.sign_in_with_password({"email": email, "password": password})
 
                     if getattr(res, 'user', None):

@@ -44,7 +44,31 @@ tab1, tab2 = st.tabs(["Login", "Register"])
 
 with tab1:
     st.subheader("Admin Login")
+    # Prefill email from localStorage if present (client-side)
+    st.markdown(
+        """
+        <script>
+        (function(){
+            try{
+                const v = localStorage.getItem('tp_email_admin');
+                if(v){
+                    const labels = Array.from(document.querySelectorAll('label'));
+                    for(const l of labels){
+                        if(l.innerText && l.innerText.trim()==='Admin Email'){
+                            const input = l.parentElement.querySelector('input') || l.nextElementSibling || l.parentElement.nextElementSibling.querySelector('input');
+                            if(input){ input.value = v; input.dispatchEvent(new Event('input',{bubbles:true})); break; }
+                        }
+                    }
+                }
+            }catch(e){}
+        })();
+        </script>
+        """,
+        unsafe_allow_html=True,
+    )
+
     admin_email = st.text_input("Admin Email", key="admin_login_email")
+    remember = st.checkbox("Remember me", key="remember_admin")
     admin_password = st.text_input("Password", type="password", key="admin_login_pw")
 
     if st.button("Login"):
@@ -56,6 +80,10 @@ with tab1:
                 st.session_state["role"] = "admin"
                 st.session_state["email"] = getattr(res.user, 'email', None)
                 st.success("Admin logged in")
+                # Save email to localStorage if user opted in
+                if remember:
+                    import json
+                    st.markdown(f"<script>localStorage.setItem('tp_email_admin', {json.dumps(admin_email)});</script>", unsafe_allow_html=True)
                 try:
                     st.switch_page("pages/admin_dashboard.py")
                 except Exception:
