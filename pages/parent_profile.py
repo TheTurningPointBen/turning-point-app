@@ -84,38 +84,126 @@ if profile:
             unsafe_allow_html=True,
         )
 
-    st.success(f"Welcome back, {profile.get('parent_name', 'Parent')}!")
+    st.success(f"Welcome back, {profile.get('parent_name', 'Parent') }!")
 
-    # Show Parent Details
-    st.subheader("Parent Details")
-    p_col1, p_col2 = st.columns([2, 3])
-    p_col1.markdown(f"**Name**\n\n{profile.get('parent_name', '—')}")
-    p_col2.markdown(f"**Phone / Email**\n\n{profile.get('phone','—')} / {profile.get('email','—')}")
+    # Edit toggle
+    if 'editing_profile' not in st.session_state:
+        st.session_state['editing_profile'] = False
 
-    st.markdown("---")
+    if st.button("✏️ Edit Profile"):
+        st.session_state['editing_profile'] = True
 
-    # Show Child Details
-    st.subheader("Child Details")
-    c_name, c_grade, c_school = st.columns([2, 1, 2])
-    c_name.markdown(f"**Name**\n\n{profile.get('child_name', '—')}")
-    c_grade.markdown(f"**Grade**\n\n{profile.get('grade', '—')}")
-    c_school.markdown(f"**School**\n\n{profile.get('school', '—')}")
+    # Display or edit profile
+    if not st.session_state.get('editing_profile'):
+        # Show Parent Details
+        st.subheader("Parent Details")
+        p_col1, p_col2 = st.columns([2, 3])
+        p_col1.markdown(f"**Name**\n\n{profile.get('parent_name', '—')}")
+        p_col2.markdown(f"**Phone / Email**\n\n{profile.get('phone','—')} / {profile.get('email','—')}")
 
-    st.markdown("---")
+        st.markdown("---")
 
-    # Actions: Make a Booking / Your Bookings
-    a1, a2, a3 = st.columns([1, 2, 1])
-    with a2:
-        if st.button("➕ Make a Booking", key="parent_proceed_booking"):
-            try:
-                st.switch_page("pages/parent_booking.py")
-            except Exception:
+        # Show Children
+        st.subheader("Children")
+        children = profile.get('children') or []
+        # Fallback to older single-child fields
+        if not children:
+            first = profile.get('child_name') or profile.get('child_firstname') or None
+            if first:
+                children = [{'name': first, 'grade': profile.get('grade'), 'school': profile.get('school')}]
+
+        if children:
+            for i, c in enumerate(children):
+                st.markdown(f"**Child {i+1}** — {c.get('name','—')} | Grade: {c.get('grade','—')} | School: {c.get('school','—')}")
+        else:
+            st.info("No child information available. Click Edit Profile to add child details.")
+
+        st.markdown("---")
+
+        # Actions: Make a Booking / Your Bookings
+        a1, a2, a3 = st.columns([1, 2, 1])
+        with a2:
+            if st.button("➕ Make a Booking", key="parent_proceed_booking"):
+                try:
+                    st.switch_page("pages/parent_booking.py")
+                except Exception:
+                    st.experimental_rerun()
+            if st.button("📚 Your Bookings", key="parent_view_bookings"):
+                try:
+                    st.switch_page("pages/parent_bookings.py")
+                except Exception:
+                    st.experimental_rerun()
+
+    else:
+        # Editing form
+        st.subheader("Edit Profile")
+        parent_name = st.text_input("Parent Name", value=profile.get('parent_name') or '')
+        phone = st.text_input("Phone Number", value=profile.get('phone') or '')
+        # Allow editing the contact email stored on the parent profile
+        email_value = profile.get('email') or get_user_attr(user, 'email') or ''
+        email = st.text_input("Contact Email", value=email_value)
+        # children editor
+        existing_children = profile.get('children') or []
+        if not existing_children:
+            first = profile.get('child_name') or profile.get('child_firstname') or None
+            if first:
+                existing_children = [{'name': first, 'grade': profile.get('grade'), 'school': profile.get('school')}]
+
+        if 'children_count' not in st.session_state:
+            st.session_state['children_count'] = max(1, len(existing_children) or 1)
+
+        # initialize input defaults
+        for idx in range(st.session_state['children_count']):
+            default = existing_children[idx] if idx < len(existing_children) else {'name':'','grade':'','school':''}
+            st.text_input(f"Child {idx+1} Name", key=f"child_name_{idx}", value=default.get('name',''))
+            st.text_input(f"Child {idx+1} Grade", key=f"child_grade_{idx}", value=default.get('grade',''))
+            st.text_input(f"Child {idx+1} School", key=f"child_school_{idx}", value=default.get('school',''))
+
+        col_add, col_save, col_cancel = st.columns([1,1,1])
+        with col_add:
+            if st.button("Add another child"):
+                st.session_state['children_count'] += 1
                 st.experimental_rerun()
-        if st.button("📚 Your Bookings", key="parent_view_bookings"):
-            try:
-                st.switch_page("pages/parent_bookings.py")
-            except Exception:
+        with col_cancel:
+            if st.button("Cancel"):
+                st.session_state['editing_profile'] = False
                 st.experimental_rerun()
+        with col_save:
+            if st.button("Save Profile"):
+                # gather children
+                children = []
+                for idx in range(st.session_state['children_count']):
+                    name = st.session_state.get(f"child_name_{idx}", '').strip()
+                    grade = st.session_state.get(f"child_grade_{idx}", '').strip()
+                    school = st.session_state.get(f"child_school_{idx}", '').strip()
+                    if name:
+                        children.append({'name': name, 'grade': grade or None, 'school': school or None})
+
+                payload = {
+                    'parent_name': parent_name or None,
+                    'phone': phone or None,
+                    'email': (email or None),
+                    'children': children or None,
+                }
+                # For backward compatibility, set first-child fields
+                if children and len(children) > 0:
+                    payload['child_name'] = children[0].get('name')
+                    payload['grade'] = children[0].get('grade')
+                    payload['school'] = children[0].get('school')
+
+                try:
+                    upd = supabase.table('parents').update(payload).eq('id', profile.get('id')).execute()
+                    if getattr(upd, 'error', None) is None:
+                        st.success('Profile updated successfully.')
+                        st.session_state['editing_profile'] = False
+                        try:
+                            st.experimental_rerun()
+                        except Exception:
+                            st.markdown("<script>window.location.reload()</script>", unsafe_allow_html=True)
+                    else:
+                        st.error(f"Failed to update profile: {getattr(upd, 'error')}")
+                except Exception as e:
+                    st.error(f"Failed to update profile: {e}")
 
 else:
     st.warning("Please complete your profile to proceed.")
