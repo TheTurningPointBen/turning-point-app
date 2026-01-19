@@ -13,13 +13,18 @@ def send_admin_email(subject: str, body: str, admin_email: str | None = None) ->
     user = os.getenv("SMTP_USER")
     password = os.getenv("SMTP_PASS")
     admin = admin_email or os.getenv("ADMIN_EMAIL")
+    sender_name = os.getenv("SENDER_NAME")
+    sender_email = os.getenv("SENDER_EMAIL") or user
 
     if not (host and user and password and admin):
         return {"error": "Missing SMTP configuration or admin email"}
 
     msg = EmailMessage()
     msg["Subject"] = subject
-    msg["From"] = user
+    if sender_name:
+        msg["From"] = f"{sender_name} <{sender_email}>"
+    else:
+        msg["From"] = sender_email
     msg["To"] = admin
     msg.set_content(body)
 
@@ -46,13 +51,18 @@ def send_email(to_email: str, subject: str, body: str) -> dict:
     port = int(os.getenv("SMTP_PORT", "587"))
     user = os.getenv("SMTP_USER")
     password = os.getenv("SMTP_PASS")
+    sender_name = os.getenv("SENDER_NAME")
+    sender_email = os.getenv("SENDER_EMAIL") or user
 
     if not (host and user and password and to_email):
         return {"error": "Missing SMTP configuration or recipient email"}
 
     msg = EmailMessage()
     msg["Subject"] = subject
-    msg["From"] = user
+    if sender_name:
+        msg["From"] = f"{sender_name} <{sender_email}>"
+    else:
+        msg["From"] = sender_email
     msg["To"] = to_email
     msg.set_content(body)
 
