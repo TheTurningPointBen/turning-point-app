@@ -5,7 +5,39 @@ from utils.ui import hide_sidebar
 hide_sidebar()
 from datetime import datetime, timedelta
 from utils.database import supabase
-from utils.email import send_email
+from utils.email import send_email, send_admin_email
+from utils.session import restore_session_from_refresh
+
+# If a one-time refresh token was pushed into the URL (tp_rt), try restoring session
+try:
+    params = st.query_params or {}
+except Exception:
+    params = {}
+
+if params.get('tp_rt'):
+    token = params.get('tp_rt')[0]
+    restored = None
+    try:
+        restored = restore_session_from_refresh(token)
+    except Exception:
+        restored = None
+
+    if restored and restored.get('user'):
+        st.session_state['authenticated'] = True
+        st.session_state['user'] = restored.get('user')
+        st.session_state['role'] = 'admin'
+        st.session_state['email'] = restored.get('user', {}).get('email')
+        try:
+            st.experimental_set_query_params()
+        except Exception:
+            pass
+        try:
+            st.experimental_rerun()
+        except Exception:
+            try:
+                st.markdown("<script>window.location.reload()</script>", unsafe_allow_html=True)
+            except Exception:
+                pass
 
 st.title("Admin Portal")
 
@@ -216,6 +248,9 @@ for booking in bookings_res.data:
                 p_res = supabase.table('parents').select('email').eq('id', booking.get('parent_id')).execute()
                 parent_email = (p_res.data or [None])[0].get('email') if getattr(p_res, 'data', None) else None
 
+                parent_sent = False
+                tutor_sent = False
+                tutor_email = None
                 if parent_email:
                     body_lines = [
                         f"Your booking has been confirmed.",
@@ -233,27 +268,60 @@ for booking in bookings_res.data:
                     send_parent = send_email(parent_email, "Booking Confirmed", "\n".join(body_lines))
                     if send_parent.get('error'):
                         st.warning(f"Failed to send confirmation email to parent: {send_parent.get('error')}")
+                    else:
+                        parent_sent = True
                     # Also notify the tutor if we have their email
-                    try:
-                        tutor_email = t.get('email') if getattr(t_res, 'data', None) else None
-                        if tutor_email:
-                            tutor_body = [
-                                f"You have been assigned a booking.",
-                                f"Child: {booking.get('child_name')}",
-                                f"Subject: {booking.get('subject')}",
-                                f"Date: {booking.get('exam_date')}",
-                                f"Start: {booking.get('start_time')}",
-                            ]
-                            if tutor_name:
-                                tutor_body.append(f"Tutor: {tutor_name}")
-                            if tutor_contact:
-                                tutor_body.append(f"Contact: {tutor_contact}")
-                            tutor_body.append("\nPlease confirm your availability.\n\nThe Turning Point")
-                            send_tutor = send_email(tutor_email, "New Booking Assigned", "\n".join(tutor_body))
-                            if send_tutor.get('error'):
-                                st.warning(f"Failed to send assignment email to tutor: {send_tutor.get('error')}")
-                    except Exception:
-                        pass
+                        try:
+                            tutor_email = t.get('email') if getattr(t_res, 'data', None) else None
+                            if tutor_email:
+                                tutor_body = [
+                                    f"You have been assigned a booking.",
+                                    f"Child: {booking.get('child_name')}",
+                                    f"Subject: {booking.get('subject')}",
+                                    f"Date: {booking.get('exam_date')}",
+                                    f"Start: {booking.get('start_time')}",
+                                ]
+                                if tutor_name:
+                                    tutor_body.append(f"Tutor: {tutor_name}")
+                                if tutor_contact:
+                                    tutor_body.append(f"Contact: {tutor_contact}")
+                                tutor_body.append("\nPlease confirm your availability.\n\nThe Turning Point")
+                                send_tutor = send_email(tutor_email, "New Booking Assigned", "\n".join(tutor_body))
+                                if send_tutor.get('error'):
+                                    st.warning(f"Failed to send assignment email to tutor: {send_tutor.get('error')}")
+                                else:
+                                    tutor_sent = True
+                        except Exception:
+                            pass
+
+                # Notify admin of email send status
+                recipients = []
+                if parent_sent and parent_email:
+                    recipients.append(parent_email)
+                if tutor_sent and tutor_email:
+                    recipients.append(tutor_email)
+                if recipients:
+                    st.success(f"Notification email(s) sent to: {', '.join(recipients)}")
+                # Send admin a summary email about what was sent
+                try:
+                    subject = f"Booking {booking.get('id')} - notification summary"
+                    body_lines = [
+                        f"Booking ID: {booking.get('id')}",
+                        f"Child: {booking.get('child_name')}",
+                        f"Subject: {booking.get('subject')}",
+                        f"Date: {booking.get('exam_date')}",
+                        f"Assigned tutor id: {tutor_id}",
+                        "",
+                        f"Parent email sent: {parent_sent} ({parent_email})",
+                        f"Tutor email sent: {tutor_sent} ({tutor_email})",
+                    ]
+                    admin_notify = send_admin_email(subject, "\n".join(body_lines))
+                    if admin_notify.get('error'):
+                        st.warning(f"Failed to send admin notification email: {admin_notify.get('error')}")
+                    else:
+                        st.info("Admin notified by email about sent notifications.")
+                except Exception:
+                    pass
             except Exception:
                 pass
 

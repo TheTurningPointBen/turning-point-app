@@ -29,10 +29,33 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-from utils.session import get_supabase
+from utils.session import get_supabase, restore_session_from_refresh
 import json
 
 supabase = get_supabase()
+
+# Auto-restore session from refresh token if one was passed once in the URL
+params = {}
+try:
+    params = st.query_params or {}
+except Exception:
+    params = {}
+
+if params.get('tp_rt'):
+    token = params.get('tp_rt')[0]
+    restored = restore_session_from_refresh(token)
+    if restored and restored.get('user'):
+        st.session_state['authenticated'] = True
+        st.session_state['user'] = restored.get('user')
+        st.session_state['email'] = restored.get('user', {}).get('email')
+        try:
+            st.experimental_set_query_params()
+        except Exception:
+            pass
+        try:
+            st.experimental_rerun()
+        except Exception:
+            pass
 
 st.title("Tutor Portal")
 
@@ -50,12 +73,22 @@ def safe_rerun():
 with tab1:
     st.subheader("Tutor Login")
 
-    # Prefill email from localStorage if present (client-side)
+    # If a refresh token exists in localStorage, send it once via URL so
+    # the server can restore the session (we remove it from URL afterwards).
     st.markdown(
         """
         <script>
         (function(){
             try{
+                const rt = localStorage.getItem('tp_refresh');
+                if(rt && !window.location.search.includes('tp_rt=')){
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('tp_rt', rt);
+                    // Don't keep the token in localStorage if we just pushed it
+                    // (we'll remove it later on successful restore)
+                    window.location.replace(url.toString());
+                }
+                // Otherwise, prefill email if stored
                 const v = localStorage.getItem('tp_email_tutor');
                 if(v){
                     const labels = Array.from(document.querySelectorAll('label'));
@@ -86,6 +119,19 @@ with tab1:
                 "email": email,
                 "password": password
             })
+            # If the response includes a refresh token and the user opted in,
+            # persist it to localStorage so we can auto-restore later.
+            try:
+                session = getattr(res, 'session', None) or (res.get('session') if isinstance(res, dict) else None)
+                refresh = None
+                if session:
+                    refresh = getattr(session, 'refresh_token', None) or (session.get('refresh_token') if isinstance(session, dict) else None)
+                if not refresh:
+                    refresh = getattr(res, 'refresh_token', None) or (res.get('refresh_token') if isinstance(res, dict) else None)
+                if remember and refresh:
+                    st.markdown(f"<script>localStorage.setItem('tp_refresh', {json.dumps(refresh)});</script>", unsafe_allow_html=True)
+            except Exception:
+                pass
 
             if getattr(res, 'user', None):
                 st.session_state["authenticated"] = True

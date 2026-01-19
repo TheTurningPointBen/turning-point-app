@@ -28,6 +28,38 @@ st.markdown(
     unsafe_allow_html=True,
 )
 from utils.database import supabase
+from utils.session import restore_session_from_refresh
+
+# If a one-time refresh token was pushed into the URL (tp_rt), try restoring session
+try:
+    params = st.query_params or {}
+except Exception:
+    params = {}
+
+if params.get('tp_rt'):
+    token = params.get('tp_rt')[0]
+    restored = None
+    try:
+        restored = restore_session_from_refresh(token)
+    except Exception:
+        restored = None
+
+    if restored and restored.get('user'):
+        st.session_state['authenticated'] = True
+        st.session_state['user'] = restored.get('user')
+        st.session_state['role'] = 'parent'
+        st.session_state['email'] = restored.get('user', {}).get('email')
+        try:
+            st.experimental_set_query_params()
+        except Exception:
+            pass
+        try:
+            st.experimental_rerun()
+        except Exception:
+            try:
+                st.markdown("<script>window.location.reload()</script>", unsafe_allow_html=True)
+            except Exception:
+                pass
 import time
 
 st.title("Parent Portal")
