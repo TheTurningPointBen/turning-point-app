@@ -233,6 +233,27 @@ for booking in bookings_res.data:
                     send_parent = send_email(parent_email, "Booking Confirmed", "\n".join(body_lines))
                     if send_parent.get('error'):
                         st.warning(f"Failed to send confirmation email to parent: {send_parent.get('error')}")
+                    # Also notify the tutor if we have their email
+                    try:
+                        tutor_email = t.get('email') if getattr(t_res, 'data', None) else None
+                        if tutor_email:
+                            tutor_body = [
+                                f"You have been assigned a booking.",
+                                f"Child: {booking.get('child_name')}",
+                                f"Subject: {booking.get('subject')}",
+                                f"Date: {booking.get('exam_date')}",
+                                f"Start: {booking.get('start_time')}",
+                            ]
+                            if tutor_name:
+                                tutor_body.append(f"Tutor: {tutor_name}")
+                            if tutor_contact:
+                                tutor_body.append(f"Contact: {tutor_contact}")
+                            tutor_body.append("\nPlease confirm your availability.\n\nThe Turning Point")
+                            send_tutor = send_email(tutor_email, "New Booking Assigned", "\n".join(tutor_body))
+                            if send_tutor.get('error'):
+                                st.warning(f"Failed to send assignment email to tutor: {send_tutor.get('error')}")
+                    except Exception:
+                        pass
             except Exception:
                 pass
 

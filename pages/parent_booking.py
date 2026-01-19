@@ -228,96 +228,15 @@ def _insert_booking(add_another=False):
             f"Duration: {duration} min\n"
             f"Extra Time: {extra_time} min\n"
         )
-        email_res = send_admin_email(subject_line, body)
+        # Notify admin about the new booking. Use explicit admin address.
+        email_res = send_admin_email(subject_line, body, admin_email="admin@theturningpoint.co.za")
         if email_res.get("error"):
             st.warning(f"Booking created but failed to send admin email: {email_res.get('error')}")
 
-        # Show confirmation with selected tutor (if any)
-        from utils.email import send_email
-
-        if selected_tutor_id:
-            try:
-                tutor_res = supabase.table("tutors").select("name,surname,phone,email").eq("id", selected_tutor_id).execute()
-                if tutor_res.data:
-                    t = tutor_res.data[0]
-                    contact = t.get("phone") or t.get("email") or "no contact"
-                    st.success(f"Tutor assigned: {t.get('name')} {t.get('surname')} — {contact}")
-
-                    # Send confirmation to parent
-                    parent_email = user.email
-                    tutor_name = f"{t.get('name')} {t.get('surname')}"
-                    start_str = start_time.strftime("%H:%M:%S")
-                    end_str = end_dt.time().strftime("%H:%M:%S")
-                    send_parent = send_email(
-                        parent_email,
-                        "Reader / Scribe Booking Confirmed",
-                        f"""
-Your booking has been confirmed.
-
-Tutor: {tutor_name}
-Date: {booking_date.isoformat()}
-Time: {start_str} – {end_str}
-School: {profile.get('school')}
-
-Cancellations within 12 hours will still be billed.
-
-The Turning Point
-"""
-                    )
-                    if send_parent.get("error"):
-                        st.warning(f"Failed to send confirmation email to parent: {send_parent.get('error')}")
-
-                    # Send assignment email to tutor
-                    tutor_email = t.get("email")
-                    if tutor_email:
-                        send_tutor = send_email(
-                            tutor_email,
-                            "New Booking Assigned",
-                            f"""
-You have been assigned a booking.
-
-Date: {booking_date.isoformat()}
-Time: {start_str} – {end_str}
-School: {profile.get('school')}
-
-Please confirm availability.
-
-The Turning Point
-"""
-                        )
-                        if send_tutor.get("error"):
-                            st.warning(f"Failed to send assignment email to tutor: {send_tutor.get('error')}")
-                else:
-                    st.info("Booking created; a tutor was selected but details are unavailable.")
-            except Exception as e:
-                st.warning(f"Booking created — couldn't fetch tutor details: {e}")
-        else:
-            st.info("Booking created. No tutor selected; admin will assign one.")
-
-            # Notify parent that booking was created but no tutor assigned yet
-            try:
-                parent_email = user.email
-                start_str = start_time.strftime("%H:%M:%S")
-                end_str = end_dt.time().strftime("%H:%M:%S")
-                send_parent = send_email(
-                    parent_email,
-                    "Reader / Scribe Booking Submitted",
-                    f"""
-Your booking has been submitted and is awaiting tutor assignment.
-
-Date: {booking_date.isoformat()}
-Time: {start_str} – {end_str}
-School: {profile.get('school')}
-
-Admin will assign a tutor and notify you.
-
-The Turning Point
-"""
-                )
-                if send_parent.get("error"):
-                    st.warning(f"Failed to send submission email to parent: {send_parent.get('error')}")
-            except Exception as e:
-                st.warning(f"Booking created — couldn't send parent email: {e}")
+        # We only notify admin on initial booking submission.
+        # Admin will assign/confirm the tutor and then the app will send
+        # confirmation emails to the parent and the tutor.
+        st.info("Booking created. No tutor selected; admin will assign one.")
     else:
         st.error(f"Booking failed: {getattr(insert_res, 'error', None)}")
 
