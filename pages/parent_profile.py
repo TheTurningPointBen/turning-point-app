@@ -193,7 +193,8 @@ if profile:
 
                 try:
                     upd = supabase.table('parents').update(payload).eq('id', profile.get('id')).execute()
-                    if getattr(upd, 'error', None) is None:
+                    err = getattr(upd, 'error', None)
+                    if err is None:
                         st.success('Profile updated successfully.')
                         st.session_state['editing_profile'] = False
                         try:
@@ -201,7 +202,31 @@ if profile:
                         except Exception:
                             st.markdown("<script>window.location.reload()</script>", unsafe_allow_html=True)
                     else:
-                        st.error(f"Failed to update profile: {getattr(upd, 'error')}")
+                        # If the DB doesn't have a `children` column (older schema), retry without it
+                        try:
+                            msg = err.get('message') if isinstance(err, dict) else str(err)
+                        except Exception:
+                            msg = str(err)
+
+                        if msg and 'children' in msg and ('Could not find' in msg or 'could not find' in msg):
+                            fallback = payload.copy()
+                            fallback.pop('children', None)
+                            try:
+                                upd2 = supabase.table('parents').update(fallback).eq('id', profile.get('id')).execute()
+                                if getattr(upd2, 'error', None) is None:
+                                    st.success("Profile updated (saved without 'children' field; database schema lacks that column).")
+                                    st.warning("Database does not have a 'children' column; consider adding it for multi-child support.")
+                                    st.session_state['editing_profile'] = False
+                                    try:
+                                        st.experimental_rerun()
+                                    except Exception:
+                                        st.markdown("<script>window.location.reload()</script>", unsafe_allow_html=True)
+                                else:
+                                    st.error(f"Failed to update profile: {getattr(upd2, 'error')}")
+                            except Exception as e2:
+                                st.error(f"Failed to update profile: {e2}")
+                        else:
+                            st.error(f"Failed to update profile: {err}")
                 except Exception as e:
                     st.error(f"Failed to update profile: {e}")
 
