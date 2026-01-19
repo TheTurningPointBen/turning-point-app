@@ -231,7 +231,8 @@ def _insert_booking(add_another=False):
         # Notify admin about the new booking. Use explicit admin address.
         email_res = send_admin_email(subject_line, body, admin_email="admin@theturningpoint.co.za")
         if email_res.get("error"):
-            st.warning(f"Booking created but failed to send admin email: {email_res.get('error')}")
+            # Log admin email failures to server logs but do not show to users
+            print(f"Admin email failed to send: {email_res.get('error')}")
 
         # We only notify admin on initial booking submission.
         # Admin will assign/confirm the tutor and then the app will send
