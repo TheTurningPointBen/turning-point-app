@@ -12,7 +12,7 @@ def send_admin_email(subject: str, body: str, admin_email: str | None = None) ->
     port = int(os.getenv("SMTP_PORT", "587"))
     user = os.getenv("SMTP_USER")
     password = os.getenv("SMTP_PASS")
-    admin = admin_email or os.getenv("ADMIN_EMAIL")
+    admin = admin_email or os.getenv("ADMIN_EMAIL") or sender_email
     sender_name = os.getenv("SENDER_NAME")
     sender_email = os.getenv("SENDER_EMAIL") or user
 
