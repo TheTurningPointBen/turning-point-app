@@ -1,6 +1,7 @@
 import streamlit as st
 from utils.ui import hide_sidebar
 from utils.session import init_session
+from utils.ui import safe_rerun
 
 # Configure the app once (must be called only once) and before any other Streamlit calls
 st.set_page_config(page_title="The Turning Point", layout="wide", initial_sidebar_state="collapsed")
@@ -41,6 +42,15 @@ if not st.session_state.get("authenticated"):
         )
 
 hide_sidebar()
+
+# Ensure older code calling `st.experimental_rerun()` keeps working by
+# providing a compatibility shim that points to our safe helper when
+# Streamlit doesn't expose `experimental_rerun`.
+try:
+    if not hasattr(st, 'experimental_rerun'):
+        setattr(st, 'experimental_rerun', safe_rerun)
+except Exception:
+    pass
 
 # Dispatcher early so root app doesn't also render the same page (e.g. homepage)
 import runpy

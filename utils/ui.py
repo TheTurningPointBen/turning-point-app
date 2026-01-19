@@ -72,3 +72,31 @@ def hide_sidebar():
         """,
         unsafe_allow_html=True,
     )
+
+
+def safe_rerun():
+    """Try to rerun the Streamlit app in a compatible way across versions.
+
+    This will attempt `st.experimental_rerun()` if available, otherwise
+    fall back to a client-side reload and stop the script.
+    """
+    try:
+        # Preferred method (may be missing on some Streamlit builds)
+        getattr(st, 'experimental_rerun')()
+        return
+    except Exception:
+        pass
+
+    try:
+        # Try to nudge Streamlit to update query params and rerun
+        try:
+            st.experimental_set_query_params()
+        except Exception:
+            pass
+        # Client-side reload fallback
+        st.markdown("<script>window.location.reload()</script>", unsafe_allow_html=True)
+    except Exception:
+        try:
+            st.stop()
+        except Exception:
+            pass
