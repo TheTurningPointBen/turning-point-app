@@ -108,8 +108,26 @@ except Exception as e:
     st.error(f"Could not load confirmed bookings: {e}")
     st.stop()
 
+# Filter out bookings that have already passed
+from datetime import datetime
+now = datetime.now()
+filtered = []
+for b in bookings:
+    try:
+        date_str = b.get('exam_date')
+        time_str = b.get('start_time') or '00:00:00'
+        dt = datetime.combine(datetime.fromisoformat(date_str), datetime.strptime(time_str, "%H:%M:%S").time())
+    except Exception:
+        # If we can't parse the datetime, keep the booking to avoid accidental hiding
+        filtered.append(b)
+        continue
+    if dt >= now:
+        filtered.append(b)
+
+bookings = filtered
+
 if not bookings:
-    st.info("No confirmed bookings")
+    st.info("No upcoming confirmed bookings")
     st.stop()
 
 for b in bookings:

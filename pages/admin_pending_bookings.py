@@ -72,6 +72,25 @@ except Exception as e:
     st.error(f"Could not load pending bookings: {e}")
     st.stop()
 
+# Discard pending bookings that are already past their date/time
+from datetime import datetime
+now = datetime.now()
+filtered = []
+for booking in bookings:
+    try:
+        date_str = booking.get('exam_date')
+        time_str = booking.get('start_time') or '00:00:00'
+        dt = datetime.combine(datetime.fromisoformat(date_str), datetime.strptime(time_str, "%H:%M:%S").time())
+    except Exception:
+        # If parsing fails, keep the booking so admins can inspect it
+        filtered.append(booking)
+        continue
+    # only keep pending bookings that are now or in the future
+    if dt >= now:
+        filtered.append(booking)
+
+bookings = filtered
+
 if not bookings:
     st.info("No pending bookings")
     st.stop()

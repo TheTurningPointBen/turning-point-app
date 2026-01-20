@@ -64,12 +64,29 @@ try:
     rows = res.data or []
     # Filter to entries that actually have a tutor allocated
     rows = [r for r in rows if r.get('tutor_id')]
+    # Exclude bookings that have already passed
+    from datetime import datetime
+    now = datetime.now()
+    filtered_rows = []
+    for r in rows:
+        try:
+            date_str = r.get('exam_date')
+            time_str = r.get('start_time') or '00:00:00'
+            dt = datetime.combine(datetime.fromisoformat(date_str), datetime.strptime(time_str, "%H:%M:%S").time())
+        except Exception:
+            # if parsing fails, keep the row
+            filtered_rows.append(r)
+            continue
+        if dt >= now:
+            filtered_rows.append(r)
+
+    rows = filtered_rows
 except Exception as e:
     st.error(f"Could not load bookings: {e}")
     rows = []
 
 if not rows:
-    st.info("No bookings found with an allocated tutor.")
+    st.info("No upcoming bookings found with an allocated tutor.")
 
 def find_tutor(tutor_ref, booking=None):
     if not tutor_ref:
