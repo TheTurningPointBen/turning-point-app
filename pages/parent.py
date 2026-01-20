@@ -117,6 +117,39 @@ with tab1:
                         st.session_state["user"] = res.user
                         st.session_state["role"] = "parent"
                         st.session_state["email"] = getattr(res.user, 'email', None)
+                        # Ensure we persist the parent's email / associate user_id in the parents table
+                        try:
+                            try:
+                                user_obj = res.user
+                                user_id = getattr(user_obj, 'id', None)
+                                user_email = getattr(user_obj, 'email', None)
+                            except Exception:
+                                user_id = None
+                                user_email = None
+
+                            if user_id or user_email:
+                                try:
+                                    # If there is a parents record for this user_id, ensure email is set
+                                    if user_id:
+                                        p_res = supabase.table('parents').select('*').eq('user_id', user_id).execute()
+                                        if getattr(p_res, 'data', None) and len(p_res.data) > 0:
+                                            # update email if missing
+                                            existing = p_res.data[0]
+                                            if user_email and existing.get('email') != user_email:
+                                                supabase.table('parents').update({'email': user_email}).eq('id', existing.get('id')).execute()
+                                        else:
+                                            # Try to find by email and attach user_id
+                                            if user_email:
+                                                by_email = supabase.table('parents').select('*').eq('email', user_email).execute()
+                                                if getattr(by_email, 'data', None) and len(by_email.data) > 0:
+                                                    supabase.table('parents').update({'user_id': user_id}).eq('id', by_email.data[0].get('id')).execute()
+                                                else:
+                                                    # Insert a minimal parent record with email and user_id
+                                                    supabase.table('parents').insert({'user_id': user_id, 'email': user_email}).execute()
+                                except Exception:
+                                    pass
+                        except Exception:
+                            pass
                         st.success("Logged in successfully.")
                         try:
                             st.switch_page("pages/parent_dashboard.py")

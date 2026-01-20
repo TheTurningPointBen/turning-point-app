@@ -18,6 +18,51 @@ user = st.session_state["user"]
 profile_res = supabase.table("parents").select("*").eq("user_id", user.id).execute()
 profile = profile_res.data[0]
 
+# Determine children for this parent (support multiple children)
+children = profile.get('children') or []
+if not children:
+    first = profile.get('child_name') or profile.get('child_firstname') or None
+    if first:
+        children = [{'name': first, 'grade': profile.get('grade'), 'school': profile.get('school')}]
+
+child_options = []
+for c in (children or []):
+    n = c.get('name') or 'Unnamed'
+    g = c.get('grade') or ''
+    s = c.get('school') or ''
+    label = f"{n}"
+    if g:
+        label += f" — Grade {g}"
+    if s:
+        label += f" | {s}"
+    child_options.append({'label': label, 'data': c})
+
+# If multiple children, let parent choose which child this booking is for
+selected_child = None
+if child_options:
+    labels = [c['label'] for c in child_options]
+    idx = st.selectbox("Which child is this for?", options=list(range(len(labels))), format_func=lambda i: labels[i])
+    selected_child = child_options[idx]['data']
+    # Provide quick link to edit/add children in profile
+    col_edit, _ = st.columns([1, 3])
+    with col_edit:
+        if st.button("Add / Edit children"):
+            try:
+                # set profile edit mode and open profile page
+                st.session_state['editing_profile'] = True
+                try:
+                    st.switch_page('pages/parent_profile.py')
+                except Exception:
+                    st.session_state['page'] = 'parent_profile'
+                    try:
+                        st.experimental_rerun()
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+else:
+    selected_child = None
+
 # Top-left Back button (smaller) and header inline
 back_col, main_col = st.columns([1, 9])
 with back_col:
@@ -73,7 +118,9 @@ with main_col:
     st.header("Book a Reader / Scribe for your child")
 
 # Form inputs
+# Default exam date to tomorrow (cannot pick past dates/times)
 subject = st.text_input("Subject")
+# Default exam date to tomorrow (cannot pick past dates/times)
 # Default exam date to tomorrow (cannot pick past dates/times)
 tomorrow = (datetime.now() + timedelta(days=1)).date()
 today = datetime.now().date()
@@ -197,11 +244,24 @@ def _insert_booking(add_another=False):
         st.warning(f"You can still submit, but admin will require WhatsApp confirmation via {wa_number_display}.")
         st.markdown(f"[Open WhatsApp chat →]({wa_link})")
 
+    # Use selected child details if available
+    child_name = None
+    grade_val = None
+    school_val = None
+    if selected_child:
+        child_name = selected_child.get('name')
+        grade_val = selected_child.get('grade')
+        school_val = selected_child.get('school')
+    else:
+        child_name = profile.get('child_name')
+        grade_val = profile.get('grade')
+        school_val = profile.get('school')
+
     insert_res = supabase.table("bookings").insert({
         "parent_id": profile["id"],
-        "child_name": profile["child_name"],
-        "grade": profile["grade"],
-        "school": profile["school"],
+        "child_name": child_name,
+        "grade": grade_val,
+        "school": school_val,
         "subject": subject,
         "role_required": role_required,
         "exam_date": exam_date.isoformat(),
@@ -215,12 +275,12 @@ def _insert_booking(add_another=False):
         st.success("Booking submitted! Admin will confirm your tutor.")
 
         # Notify admin if SMTP is configured
-        subject_line = f"New booking: {profile.get('child_name')} — {subject}"
+        subject_line = f"New booking: {child_name or 'Unknown child'} — {subject}"
         body = (
             f"Parent: {user.email}\n"
-            f"Child: {profile.get('child_name')}\n"
-            f"Grade: {profile.get('grade')}\n"
-            f"School: {profile.get('school')}\n"
+            f"Child: {child_name}\n"
+            f"Grade: {grade_val}\n"
+            f"School: {school_val}\n"
             f"Subject: {subject}\n"
             f"Role Required: {role_required}\n"
             f"Exam Date: {exam_date.isoformat()}\n"

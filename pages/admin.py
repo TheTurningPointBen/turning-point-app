@@ -72,7 +72,7 @@ def safe_rerun():
     except Exception:
         st.markdown("<script>window.location.reload()</script>", unsafe_allow_html=True)
 
-tab1, tab2 = st.tabs(["Login", "Register"])
+tab1 = st.tabs(["Login"])[0]
 
 with tab1:
     st.subheader("Admin Login")
@@ -156,29 +156,10 @@ with tab1:
                     except Exception:
                         pass
 
-with tab2:
-    st.subheader("Admin Registration")
-    reg_email = st.text_input("Email", key="admin_reg_email")
-    reg_password = st.text_input("Password", type="password", key="admin_reg_pw")
-    confirm_pw = st.text_input("Confirm Password", type="password", key="admin_reg_confirm")
-
-    if st.button("Register"):
-        if reg_password != confirm_pw:
-            st.error("Passwords do not match.")
-        else:
-            try:
-                res = supabase.auth.sign_up({"email": reg_email, "password": reg_password})
-                if getattr(res, 'user', None):
-                    st.success("Registration successful. Please confirm the email before logging in.")
-                else:
-                    st.error("Registration may have failed; see response below.")
-                    st.write(res)
-            except Exception as e:
-                st.error("Registration failed. Email may already exist.")
-                st.exception(e)
+# Registration disabled for admins — admin users must be created internally.
 
 if not st.session_state.get("authenticated") or st.session_state.get("role") != "admin":
-    st.warning("Please log in as admin on the Admin page first.")
+    # Authentication required — stop rendering further admin content.
     st.stop()
 
 # --- FETCH PENDING BOOKINGS ---
@@ -243,10 +224,17 @@ for booking in bookings_res.data:
                     t = t_res.data[0]
                     tutor_name = f"{t.get('name','')} {t.get('surname','')}".strip()
                     tutor_contact = t.get('phone') or t.get('email') or 'no contact'
+                else:
+                    st.warning("Tutor lookup failed — tutor contact not found.")
 
-                # fetch parent email
+                # fetch parent email (fallback to booking row if parents record missing)
                 p_res = supabase.table('parents').select('email').eq('id', booking.get('parent_id')).execute()
                 parent_email = (p_res.data or [None])[0].get('email') if getattr(p_res, 'data', None) else None
+                if not parent_email:
+                    # try booking-level fields
+                    parent_email = (booking.get('parent_email') or booking.get('email') or None)
+                if not parent_email:
+                    st.warning("Parent email not found — parent may not have been notified")
 
                 parent_sent = False
                 tutor_sent = False
