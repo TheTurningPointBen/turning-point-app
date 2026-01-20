@@ -162,12 +162,20 @@ if view == "pending":
 elif view == "confirmed":
     query = query.eq("status", "Confirmed")
 
-# Execute query; avoid filtering on `cancelled` column because some DBs may not have it
+# Exclude cancelled bookings (some DBs may not have a dedicated cancelled column)
+try:
+    query = query.neq("status", "Cancelled")
+except Exception:
+    # If the client or DB doesn't support `neq`, fall back to running the query as-is
+    pass
+
 res = query.order("start_time").execute()
 
 # Show only bookings (Pending/Confirmed) occurring in the next 48 hours
 from datetime import timedelta
 now = datetime.now()
+# Include all bookings from the start of the day the admin opens the dashboard
+start_of_day = datetime(now.year, now.month, now.day)
 cutoff = now + timedelta(hours=48)
 
 bookings = res.data or []
@@ -179,14 +187,15 @@ for b in bookings:
         dt = datetime.combine(datetime.fromisoformat(date_str), datetime.strptime(time_str, "%H:%M:%S").time())
     except Exception:
         continue
-    if now <= dt <= cutoff:
+    # Show bookings from the start of today up to 48 hours from now
+    if start_of_day <= dt <= cutoff:
         upcoming.append((dt, b))
 
 if not upcoming:
     st.info("No bookings pending/confirmed in the next 48 hours.")
 else:
     upcoming.sort(key=lambda x: x[0])
-    st.subheader("Bookings in next 48 hours")
+    st.subheader(f"Bookings from {start_of_day.strftime('%d %b %Y %H:%M')} to {cutoff.strftime('%d %b %Y %H:%M')}")
     for dt, b in upcoming:
         st.divider()
         st.write(f"{dt.strftime('%d %b %Y %H:%M')} — {b.get('child_name')} — {b.get('subject')} ({b.get('status')})")
