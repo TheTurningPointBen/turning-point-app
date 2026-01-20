@@ -241,6 +241,40 @@ with tab2:
                 res = supabase.auth.sign_up({"email": reg_email, "password": reg_password})
                 if getattr(res, 'user', None):
                     st.success("Registration successful. Please confirm your email before logging in.")
+                    # Ensure a minimal parents record exists with this email/user_id
+                    try:
+                        user_obj = res.user
+                        user_id = getattr(user_obj, 'id', None)
+                        user_email = getattr(user_obj, 'email', None)
+                    except Exception:
+                        user_id = None
+                        user_email = reg_email
+
+                    try:
+                        # If a parents record exists by user_id, update email if missing
+                        if user_id:
+                            p_res = supabase.table('parents').select('*').eq('user_id', user_id).execute()
+                            if getattr(p_res, 'data', None) and len(p_res.data) > 0:
+                                existing = p_res.data[0]
+                                if user_email and existing.get('email') != user_email:
+                                    supabase.table('parents').update({'email': user_email}).eq('id', existing.get('id')).execute()
+                            else:
+                                # Try to find by email and attach user_id
+                                if user_email:
+                                    by_email = supabase.table('parents').select('*').eq('email', user_email).execute()
+                                    if getattr(by_email, 'data', None) and len(by_email.data) > 0:
+                                        supabase.table('parents').update({'user_id': user_id}).eq('id', by_email.data[0].get('id')).execute()
+                                    else:
+                                        # Insert a minimal parent record
+                                        supabase.table('parents').insert({'user_id': user_id, 'email': user_email}).execute()
+                        else:
+                            # No user_id available; ensure a parents row for the email exists
+                            if user_email:
+                                by_email = supabase.table('parents').select('*').eq('email', user_email).execute()
+                                if not (getattr(by_email, 'data', None) and len(by_email.data) > 0):
+                                    supabase.table('parents').insert({'email': user_email}).execute()
+                    except Exception:
+                        pass
                 else:
                     st.error("Registration may have failed; see response below.")
                     st.write(res)

@@ -139,6 +139,37 @@ with tab1:
                 st.session_state["role"] = "tutor"
                 st.session_state["email"] = getattr(res.user, 'email', None)
                 st.success("Logged in successfully.")
+                # Ensure tutors table has this user's email and user_id linked
+                try:
+                    user_obj = res.user
+                    user_id = getattr(user_obj, 'id', None)
+                    user_email = getattr(user_obj, 'email', None)
+                except Exception:
+                    user_id = None
+                    user_email = getattr(res.user, 'email', None)
+
+                try:
+                    if user_id or user_email:
+                        if user_id:
+                            t_res = supabase.table('tutors').select('*').eq('user_id', user_id).execute()
+                            if getattr(t_res, 'data', None) and len(t_res.data) > 0:
+                                existing = t_res.data[0]
+                                if user_email and existing.get('email') != user_email:
+                                    supabase.table('tutors').update({'email': user_email}).eq('id', existing.get('id')).execute()
+                            else:
+                                if user_email:
+                                    by_email = supabase.table('tutors').select('*').eq('email', user_email).execute()
+                                    if getattr(by_email, 'data', None) and len(by_email.data) > 0:
+                                        supabase.table('tutors').update({'user_id': user_id}).eq('id', by_email.data[0].get('id')).execute()
+                                    else:
+                                        supabase.table('tutors').insert({'user_id': user_id, 'email': user_email}).execute()
+                        else:
+                            if user_email:
+                                by_email = supabase.table('tutors').select('*').eq('email', user_email).execute()
+                                if not (getattr(by_email, 'data', None) and len(by_email.data) > 0):
+                                    supabase.table('tutors').insert({'email': user_email}).execute()
+                except Exception:
+                    pass
                 try:
                     st.switch_page("pages/tutor.py")
                 except Exception:
@@ -201,6 +232,21 @@ with tab2:
                     st.success(
                         "Registration successful. Please confirm your email before logging in."
                     )
+                    # Create a minimal tutors record for this new user
+                    try:
+                        user_obj = res.user
+                        user_id = getattr(user_obj, 'id', None)
+                        user_email = getattr(user_obj, 'email', None)
+                    except Exception:
+                        user_id = None
+                        user_email = reg_email
+                    try:
+                        if user_id:
+                            supabase.table('tutors').insert({'user_id': user_id, 'email': user_email}).execute()
+                        else:
+                            supabase.table('tutors').insert({'email': user_email}).execute()
+                    except Exception:
+                        pass
 
             except Exception:
                 st.error("Registration failed. Email may already exist.")
