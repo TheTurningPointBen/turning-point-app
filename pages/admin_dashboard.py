@@ -130,6 +130,9 @@ st.markdown(
 )
 st.markdown("---")
 
+# Option to view past bookings from the Admin Area
+show_past = st.checkbox("Show past bookings (last 7 days)", key="admin_show_past")
+
 # Logout confirmation dialog
 if st.session_state.get("_logout_pending"):
     st.warning("Do you wish to log out?")
@@ -175,7 +178,11 @@ res = query.order("start_time").execute()
 from datetime import timedelta
 now = datetime.now()
 # Show only future bookings (from now) up to the next 48 hours
-start_window = now
+# If the admin requested past bookings, extend the window back 7 days
+if st.session_state.get("admin_show_past"):
+    start_window = now - timedelta(days=7)
+else:
+    start_window = now
 cutoff = now + timedelta(hours=48)
 
 bookings = res.data or []
