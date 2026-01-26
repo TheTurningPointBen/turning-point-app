@@ -230,7 +230,7 @@ with tab2:
 
                 if getattr(res, 'user', None):
                     st.success(
-                        "Registration successful. Please confirm your email before logging in."
+                        "Registration successful. Please log in to profile."
                     )
                     # Create a minimal tutors record for this new user
                     try:
