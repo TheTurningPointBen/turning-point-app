@@ -1,7 +1,8 @@
 import streamlit as st
 from utils.ui import hide_sidebar
 from utils.database import supabase
-from datetime import date, datetime, timedelta
+from utils.email import send_admin_email
+from datetime import date, datetime, time, timedelta
 
 hide_sidebar()
 
@@ -435,3 +436,143 @@ with cb3:
                 st.download_button("Download bookings CSV", csv, file_name="bookings.csv", mime="text/csv")
             except Exception as e:
                 st.error(f"Failed to prepare CSV: {e}")
+
+
+# -- Manual booking: allow admin to create a booking for a client --
+with st.expander("Create Manual Booking (Admin)"):
+    st.write("Create a booking on behalf of a client.")
+
+    # Fetch parents
+    try:
+        pres = supabase.table("parents").select("*").order("parent_name").execute()
+        parents = pres.data or []
+    except Exception as e:
+        st.error(f"Failed to load clients: {e}")
+        parents = []
+
+    if not parents:
+        st.warning("No clients found.")
+    else:
+        opts = []
+        pid_map = {}
+        for p in parents:
+            display = p.get('parent_name') or p.get('phone') or str(p.get('id'))
+            label = f"{display} — {p.get('phone') or ''}".strip()
+            opts.append(label)
+            pid_map[label] = p
+
+        sel_label = st.selectbox("Client", opts, key="admin_manual_client_select")
+        selected_parent = pid_map.get(sel_label)
+
+        # Children for this parent
+        children = selected_parent.get('children') or []
+        if not children:
+            first = selected_parent.get('child_name') or selected_parent.get('child_firstname') or None
+            if first:
+                children = [{'name': first, 'grade': selected_parent.get('grade'), 'school': selected_parent.get('school')}]
+
+        child_label = None
+        selected_child = None
+        if children:
+            labels = []
+            for c in children:
+                n = c.get('name') or 'Unnamed'
+                g = c.get('grade') or ''
+                s = c.get('school') or ''
+                lbl = n
+                if g:
+                    lbl += f" — Grade {g}"
+                if s:
+                    lbl += f" | {s}"
+                labels.append(lbl)
+            idx = st.selectbox("Which child is this for?", options=list(range(len(labels))), format_func=lambda i: labels[i], key="admin_manual_child_select")
+            selected_child = children[idx]
+
+        # Booking inputs
+        subject = st.text_input("Subject", key="admin_manual_subject")
+        today = datetime.now().date()
+        tomorrow = (datetime.now() + timedelta(days=1)).date()
+        exam_date = st.date_input("Exam Date", value=tomorrow, min_value=today, key="admin_manual_exam_date")
+        start_time = st.time_input("Start Time", value=time(7, 45), key="admin_manual_start_time")
+        duration = st.number_input("Duration (minutes)", min_value=30, max_value=480, value=60, key="admin_manual_duration")
+        extra_time = st.number_input("Extra Time (minutes)", min_value=0, max_value=120, value=0, key="admin_manual_extra_time")
+        role_required = st.selectbox("Role Required", ["Reader", "Scribe", "Both"], key="admin_manual_role")
+
+        # Tutor selection (optional)
+        try:
+            tres = supabase.table('tutors').select('id,name,surname').eq('approved', True).order('name').execute()
+            tutors = tres.data or []
+        except Exception:
+            tutors = []
+
+        tutor_opts = ["Unassigned"]
+        tutor_map = {"Unassigned": None}
+        for t in tutors:
+            label = f"{(t.get('name') or '')} {(t.get('surname') or '')}".strip() or str(t.get('id'))
+            tutor_opts.append(label)
+            tutor_map[label] = t.get('id')
+
+        selected_tutor_label = st.selectbox("Assign Tutor (optional)", tutor_opts, key="admin_manual_tutor")
+        selected_tutor_id = tutor_map.get(selected_tutor_label)
+
+        status = st.selectbox("Booking status", ["Pending", "Confirmed"], index=0, key="admin_manual_status")
+
+        def _admin_insert_booking():
+            booking_dt = datetime.combine(exam_date, start_time)
+            now = datetime.now()
+            if booking_dt < now:
+                st.error("Cannot create a booking in the past.")
+                return
+
+            # Prepare child details
+            child_name = None
+            grade_val = None
+            school_val = None
+            if selected_child:
+                child_name = selected_child.get('name')
+                grade_val = selected_child.get('grade')
+                school_val = selected_child.get('school')
+            else:
+                child_name = selected_parent.get('child_name')
+                grade_val = selected_parent.get('grade')
+                school_val = selected_parent.get('school')
+
+            try:
+                ins = supabase.table('bookings').insert({
+                    'parent_id': selected_parent.get('id'),
+                    'child_name': child_name,
+                    'grade': grade_val,
+                    'school': school_val,
+                    'subject': subject,
+                    'role_required': role_required,
+                    'exam_date': exam_date.isoformat(),
+                    'start_time': start_time.strftime('%H:%M:%S'),
+                    'duration': int(duration),
+                    'extra_time': int(extra_time),
+                    'tutor_id': selected_tutor_id,
+                    'status': status,
+                }).execute()
+
+                if getattr(ins, 'error', None) is None and ins.data:
+                    st.success('Manual booking created.')
+                    # Notify admin and optionally parent
+                    sub = f"Manual booking created: {child_name or 'Child'} — {subject}"
+                    body = (
+                        f"Admin created booking for parent id {selected_parent.get('id')}\n"
+                        f"Child: {child_name}\n"
+                        f"Exam Date: {exam_date.isoformat()} {start_time.strftime('%H:%M:%S')}\n"
+                        f"Duration: {duration} min (+{extra_time} extra)\n"
+                        f"Tutor assigned: {selected_tutor_label or 'Unassigned'}\n"
+                        f"Status: {status}\n"
+                    )
+                    try:
+                        send_admin_email(sub, body)
+                    except Exception:
+                        pass
+                else:
+                    st.error(f"Failed to create booking: {getattr(ins, 'error', None)}")
+            except Exception as e:
+                st.error(f"Failed to create booking: {e}")
+
+        if st.button("Save Manual Booking", key="admin_manual_save"):
+            _admin_insert_booking()
