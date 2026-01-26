@@ -98,6 +98,8 @@ else:
                             st.experimental_rerun()
                         except Exception:
                             pass
+                    except Exception as e:
+                        st.error(f"Failed to deny tutor: {e}")
                 if st.button("Edit", key=f"edit_unconfirmed_{tid}"):
                     st.session_state[f"editing_unconfirmed_{tid}"] = True
 
@@ -177,8 +179,6 @@ else:
                                         st.error(f"Update failed: {getattr(upd, 'error', upd)}")
                                 except Exception as e:
                                     st.error(f"Failed to update tutor: {e}")
-                    except Exception as e:
-                        st.error(f"Failed to deny tutor: {e}")
 
 st.markdown("---")
 
