@@ -289,7 +289,7 @@ def _insert_booking(add_another=False):
             f"Extra Time: {extra_time} min\n"
         )
         # Notify admin about the new booking. Use explicit admin address.
-        email_res = send_admin_email(subject_line, body, admin_email="admin@theturningpoint.co.za")
+        email_res = send_admin_email(subject_line, body)
 
         # We only notify admin on initial booking submission.
         # Admin will assign/confirm the tutor and then the app will send

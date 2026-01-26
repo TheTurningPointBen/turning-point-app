@@ -86,3 +86,13 @@ for tutor in res.data:
 
                 st.success("Tutor approved.")
                 safe_rerun()
+
+        # One-click: remove transport flag for this tutor
+        if tutor.get('transport'):
+            if st.button("Remove transport", key=f"remove_transport_{tutor.get('id')}"):
+                try:
+                    supabase.table('tutors').update({'transport': False}).eq('id', tutor.get('id')).execute()
+                    st.success('Transport flag cleared for tutor')
+                    safe_rerun()
+                except Exception as e:
+                    st.error(f'Failed to clear transport: {e}')

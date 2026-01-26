@@ -230,7 +230,7 @@ with tab2:
 
                 if getattr(res, 'user', None):
                     st.success(
-                        "Registration successful. Please confirm your email before logging in."
+                        "Registration successful. Please log in to profile."
                     )
                     # Create a minimal tutors record for this new user
                     try:
@@ -241,10 +241,26 @@ with tab2:
                         user_id = None
                         user_email = reg_email
                     try:
-                        if user_id:
-                            supabase.table('tutors').insert({'user_id': user_id, 'email': user_email}).execute()
+                        # If a tutors record already exists for this email, link the user_id
+                        if user_email:
+                            existing = supabase.table('tutors').select('*').eq('email', user_email).execute()
+                            if getattr(existing, 'data', None) and len(existing.data) > 0:
+                                # update the existing tutor row with user_id (if available) and ensure email stored
+                                upd_payload = {}
+                                if user_id:
+                                    upd_payload['user_id'] = user_id
+                                upd_payload['email'] = user_email
+                                supabase.table('tutors').update(upd_payload).eq('id', existing.data[0].get('id')).execute()
+                            else:
+                                # create a new tutor row
+                                payload = {'email': user_email}
+                                if user_id:
+                                    payload['user_id'] = user_id
+                                supabase.table('tutors').insert(payload).execute()
                         else:
-                            supabase.table('tutors').insert({'email': user_email}).execute()
+                            # Fallback: create a minimal row if we don't have an email
+                            if user_id:
+                                supabase.table('tutors').insert({'user_id': user_id}).execute()
                     except Exception:
                         pass
 
