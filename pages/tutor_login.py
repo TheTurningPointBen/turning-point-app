@@ -233,9 +233,7 @@ with tab2:
                 })
 
                 if getattr(res, 'user', None):
-                        st.success(
-                            "Registration successful. Please check your email to confirm your address."
-                        )
+                    st.success("Registration successful. Please check your email to confirm your address.")
                     # Create a minimal tutors record for this new user
                     try:
                         user_obj = res.user
@@ -244,6 +242,7 @@ with tab2:
                     except Exception:
                         user_id = None
                         user_email = reg_email
+
                     try:
                         # If a tutors record already exists for this email, link the user_id
                         if user_email:
