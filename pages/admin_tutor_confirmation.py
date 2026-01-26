@@ -301,34 +301,59 @@ for b in rows:
                         pass
 
                 if save:
-                    try:
-                        payload = {}
-                        existing_keys = set(tutor.keys())
-                        fields = {
-                            'name': name,
-                            'surname': surname,
-                            'phone': phone,
-                            'email': email,
-                            'city': city,
-                            'roles': roles,
-                            'approved': approved,
-                            'notes': notes,
-                            'afrikaans': bool(afrikaans),
-                            'isizulu': bool(isizulu),
-                            'setswana': bool(setswana),
-                            'isixhosa': bool(isixhosa),
-                            'french': bool(french),
-                        }
-                        for k, v in fields.items():
-                            if k in existing_keys:
-                                payload[k] = v
+                    # Build payload and store in session for confirmation modal
+                    payload = {}
+                    existing_keys = set(tutor.keys())
+                    fields = {
+                        'name': name,
+                        'surname': surname,
+                        'phone': phone,
+                        'email': email,
+                        'city': city,
+                        'roles': roles,
+                        'approved': approved,
+                        'notes': notes,
+                        'afrikaans': bool(afrikaans),
+                        'isizulu': bool(isizulu),
+                        'setswana': bool(setswana),
+                        'isixhosa': bool(isixhosa),
+                        'french': bool(french),
+                    }
+                    for k, v in fields.items():
+                        if k in existing_keys:
+                            payload[k] = v
 
-                        if not payload:
-                            st.info("No updatable columns found for this tutor.")
-                        else:
+                    if not payload:
+                        st.info("No updatable columns found for this tutor.")
+                    else:
+                        # Save pending payload in session_state and show confirmation modal below
+                        pending_key = f"pending_tutor_update_{tutor_id_for_edit}"
+                        st.session_state[pending_key] = payload
+                        st.session_state[f"pending_tutor_name_{tutor_id_for_edit}"] = f"{tutor.get('name','')} {tutor.get('surname','')}"
+                        try:
+                            st.experimental_rerun()
+                        except Exception:
+                            pass
+
+        # Confirmation modal: if a pending payload exists, prompt admin to confirm
+        pending_key = f"pending_tutor_update_{tutor_id_for_edit}"
+        if st.session_state.get(pending_key):
+            payload = st.session_state.get(pending_key)
+            pending_name = st.session_state.get(f"pending_tutor_name_{tutor_id_for_edit}")
+            with st.modal("Confirm tutor update"):
+                st.write(f"You are about to update the tutor profile: **{pending_name}**")
+                st.write("Proposed changes:")
+                st.json(payload)
+                col_confirm, col_cancel = st.columns([1,1])
+                with col_confirm:
+                    if st.button("Confirm changes", key=f"confirm_tutor_update_{tutor_id_for_edit}"):
+                        try:
                             upd = supabase.table('tutors').update(payload).eq('id', tutor_id_for_edit).execute()
                             if getattr(upd, 'error', None) is None:
                                 st.success("Tutor profile updated")
+                                # clear pending and editing flags
+                                st.session_state.pop(pending_key, None)
+                                st.session_state.pop(f"pending_tutor_name_{tutor_id_for_edit}", None)
                                 st.session_state.pop(f"editing_tutor_{tutor_id_for_edit}", None)
                                 try:
                                     st.experimental_rerun()
@@ -336,8 +361,16 @@ for b in rows:
                                     pass
                             else:
                                 st.error(f"Update failed: {getattr(upd, 'error', upd)}")
-                    except Exception as e:
-                        st.error(f"Failed to update tutor: {e}")
+                        except Exception as e:
+                            st.error(f"Failed to update tutor: {e}")
+                with col_cancel:
+                    if st.button("Cancel", key=f"cancel_tutor_update_{tutor_id_for_edit}"):
+                        st.session_state.pop(pending_key, None)
+                        st.session_state.pop(f"pending_tutor_name_{tutor_id_for_edit}", None)
+                        try:
+                            st.experimental_rerun()
+                        except Exception:
+                            pass
 
     # If tutor already confirmed via their portal, allow finalizing
     if status == "TutorConfirmed":
