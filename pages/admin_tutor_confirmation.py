@@ -251,6 +251,94 @@ for b in rows:
                 except Exception as e:
                     st.error(f"Failed to finalize booking: {e}")
 
+    # Allow admin to edit the tutor profile directly
+    if b.get('tutor_id'):
+        tutor_edit_btn_col, _ = st.columns([1, 8])
+        with tutor_edit_btn_col:
+            if st.button("Edit Tutor Profile", key=f"edit_tutor_profile_{booking_id}"):
+                # open inline tutor editor for this tutor id
+                st.session_state[f"editing_tutor_{b.get('tutor_id')}"] = True
+
+    # Inline Tutor edit form
+    tutor_id_for_edit = b.get('tutor_id')
+    if tutor_id_for_edit and st.session_state.get(f"editing_tutor_{tutor_id_for_edit}"):
+        try:
+            t_res = supabase.table('tutors').select('*').eq('id', tutor_id_for_edit).execute()
+            tutor = (t_res.data or [None])[0]
+        except Exception as e:
+            st.error(f"Failed to load tutor: {e}")
+            tutor = None
+
+        if tutor:
+            st.markdown('---')
+            st.subheader(f"Edit tutor profile: {tutor.get('name') or ''} {tutor.get('surname') or ''}")
+            with st.form(key=f"edit_tutor_inline_{tutor_id_for_edit}"):
+                name = st.text_input("First name", value=tutor.get('name') or "")
+                surname = st.text_input("Surname", value=tutor.get('surname') or "")
+                phone = st.text_input("Phone", value=tutor.get('phone') or "")
+                email = st.text_input("Email", value=tutor.get('email') or "")
+                city = st.text_input("City", value=tutor.get('city') or "")
+                roles = st.text_input("Roles (Reader/Scribe/Both)", value=tutor.get('roles') or "")
+                approved = st.checkbox("Approved", value=bool(tutor.get('approved')))
+                notes = st.text_area("Notes", value=tutor.get('notes') or "")
+
+                st.markdown("---")
+                st.subheader("Languages")
+                afrikaans = st.checkbox("Afrikaans", value=bool(tutor.get('afrikaans')))
+                isizulu = st.checkbox("IsiZulu", value=bool(tutor.get('isizulu')))
+                setswana = st.checkbox("Setswana", value=bool(tutor.get('setswana')))
+                isixhosa = st.checkbox("IsiXhosa", value=bool(tutor.get('isixhosa')))
+                french = st.checkbox("French", value=bool(tutor.get('french')))
+
+                save = st.form_submit_button("Save tutor profile")
+                cancel = st.form_submit_button("Cancel")
+
+                if cancel:
+                    st.session_state.pop(f"editing_tutor_{tutor_id_for_edit}", None)
+                    try:
+                        st.experimental_rerun()
+                    except Exception:
+                        pass
+
+                if save:
+                    try:
+                        payload = {}
+                        existing_keys = set(tutor.keys())
+                        fields = {
+                            'name': name,
+                            'surname': surname,
+                            'phone': phone,
+                            'email': email,
+                            'city': city,
+                            'roles': roles,
+                            'approved': approved,
+                            'notes': notes,
+                            'afrikaans': bool(afrikaans),
+                            'isizulu': bool(isizulu),
+                            'setswana': bool(setswana),
+                            'isixhosa': bool(isixhosa),
+                            'french': bool(french),
+                        }
+                        for k, v in fields.items():
+                            if k in existing_keys:
+                                payload[k] = v
+
+                        if not payload:
+                            st.info("No updatable columns found for this tutor.")
+                        else:
+                            upd = supabase.table('tutors').update(payload).eq('id', tutor_id_for_edit).execute()
+                            if getattr(upd, 'error', None) is None:
+                                st.success("Tutor profile updated")
+                                st.session_state.pop(f"editing_tutor_{tutor_id_for_edit}", None)
+                                try:
+                                    st.experimental_rerun()
+                                except Exception:
+                                    pass
+                            else:
+                                st.error(f"Update failed: {getattr(upd, 'error', upd)}")
+                    except Exception as e:
+                        st.error(f"Failed to update tutor: {e}")
+
     # If tutor already confirmed via their portal, allow finalizing
     if status == "TutorConfirmed":
         if st.button("Finalize & Email Parent", key=f"finalize_{booking_id}"):
