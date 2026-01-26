@@ -98,6 +98,85 @@ else:
                             st.experimental_rerun()
                         except Exception:
                             pass
+                if st.button("Edit", key=f"edit_unconfirmed_{tid}"):
+                    st.session_state[f"editing_unconfirmed_{tid}"] = True
+
+            # Inline edit for unconfirmed tutor
+            if st.session_state.get(f"editing_unconfirmed_{tid}"):
+                try:
+                    t_res = supabase.table('tutors').select('*').eq('id', tid).execute()
+                    tutor = (t_res.data or [None])[0]
+                except Exception as e:
+                    st.error(f"Failed to load tutor for edit: {e}")
+                    tutor = None
+
+                if tutor:
+                    with st.form(key=f"edit_unconfirmed_form_{tid}"):
+                        name_in = st.text_input("First name", value=tutor.get('name') or "")
+                        surname_in = st.text_input("Surname", value=tutor.get('surname') or "")
+                        phone_in = st.text_input("Phone", value=tutor.get('phone') or "")
+                        email_in = st.text_input("Email", value=tutor.get('email') or "")
+                        city_in = st.text_input("City", value=tutor.get('city') or "")
+                        roles_in = st.text_input("Roles (Reader/Scribe/Both)", value=tutor.get('roles') or "")
+                        notes_in = st.text_area("Notes", value=tutor.get('notes') or "")
+                        approved_in = st.checkbox("Approved", value=bool(tutor.get('approved')))
+
+                        st.markdown("---")
+                        st.subheader("Languages")
+                        afrikaans_in = st.checkbox("Afrikaans", value=bool(tutor.get('afrikaans')))
+                        isizulu_in = st.checkbox("IsiZulu", value=bool(tutor.get('isizulu')))
+                        setswana_in = st.checkbox("Setswana", value=bool(tutor.get('setswana')))
+                        isixhosa_in = st.checkbox("IsiXhosa", value=bool(tutor.get('isixhosa')))
+                        french_in = st.checkbox("French", value=bool(tutor.get('french')))
+
+                        save = st.form_submit_button("Save changes")
+                        cancel = st.form_submit_button("Cancel")
+
+                        if cancel:
+                            st.session_state.pop(f"editing_unconfirmed_{tid}", None)
+                            try:
+                                st.experimental_rerun()
+                            except Exception:
+                                pass
+
+                        if save:
+                            payload = {}
+                            existing_keys = set(tutor.keys())
+                            fields = {
+                                'name': name_in,
+                                'surname': surname_in,
+                                'phone': phone_in,
+                                'email': email_in,
+                                'city': city_in,
+                                'roles': roles_in,
+                                'notes': notes_in,
+                                'approved': approved_in,
+                                'afrikaans': bool(afrikaans_in),
+                                'isizulu': bool(isizulu_in),
+                                'setswana': bool(setswana_in),
+                                'isixhosa': bool(isixhosa_in),
+                                'french': bool(french_in),
+                            }
+                            for k, v in fields.items():
+                                if k in existing_keys:
+                                    payload[k] = v
+
+                            if not payload:
+                                st.info("No updatable columns found for this tutor.")
+                            else:
+                                try:
+                                    upd = supabase.table('tutors').update(payload).eq('id', tid).execute()
+                                    if getattr(upd, 'error', None) is None:
+                                        st.success("Tutor profile updated")
+                                        st.session_state.pop(f"editing_unconfirmed_{tid}", None)
+                                        try:
+                                            st.experimental_rerun()
+                                        except Exception:
+                                            pass
+                                    else:
+                                        st.error(f"Update failed: {getattr(upd, 'error', upd)}")
+                                except Exception as e:
+                                    st.error(f"Failed to update tutor: {e}")
                     except Exception as e:
                         st.error(f"Failed to deny tutor: {e}")
 
