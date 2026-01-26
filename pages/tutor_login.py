@@ -175,8 +175,12 @@ with tab1:
                 except Exception:
                     safe_rerun()
 
-        except Exception:
+        except Exception as e:
             st.error("Invalid login credentials.")
+            try:
+                st.exception(e)
+            except Exception:
+                pass
 
     # -------------------------
     # FORGOT PASSWORD
@@ -229,9 +233,9 @@ with tab2:
                 })
 
                 if getattr(res, 'user', None):
-                    st.success(
-                        "Registration successful. Please log in to profile."
-                    )
+                        st.success(
+                            "Registration successful. Please check your email to confirm your address."
+                        )
                     # Create a minimal tutors record for this new user
                     try:
                         user_obj = res.user
@@ -264,5 +268,9 @@ with tab2:
                     except Exception:
                         pass
 
-            except Exception:
+            except Exception as e:
                 st.error("Registration failed. Email may already exist.")
+                try:
+                    st.exception(e)
+                except Exception:
+                    pass
