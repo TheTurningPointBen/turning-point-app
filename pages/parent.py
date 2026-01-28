@@ -240,7 +240,7 @@ with tab2:
             try:
                 res = supabase.auth.sign_up({"email": reg_email, "password": reg_password})
                 if getattr(res, 'user', None):
-                    st.success("Registration successful. Please confirm your email before logging in.")
+                    st.success("Thank you please log in to account.")
                     # Ensure a minimal parents record exists with this email/user_id
                     try:
                         user_obj = res.user
