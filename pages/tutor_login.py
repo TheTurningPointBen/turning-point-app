@@ -233,7 +233,7 @@ with tab2:
                 })
 
                 if getattr(res, 'user', None):
-                    st.success("Registration successful. Please check your email to confirm your address.")
+                    st.success("Thank you please log in to account.")
                     # Create a minimal tutors record for this new user
                     try:
                         user_obj = res.user
