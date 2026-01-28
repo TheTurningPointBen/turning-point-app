@@ -129,7 +129,8 @@ exam_date = st.date_input("Exam Date", value=tomorrow, min_value=today)
 start_time = st.time_input("Start Time", value=time(7, 45))
 duration = st.number_input("Duration (minutes)", min_value=30, max_value=180, value=60)
 extra_time = st.number_input("Extra Time (minutes)", min_value=0, max_value=60, value=0)
-role_required = st.selectbox("Role Required", ["Reader", "Scribe", "Both"]) 
+role_options = ["Reader", "Scribe", "Both (Reader & Scribe)", "Invigilator", "Prompter", "All of the Above"]
+role_required = st.selectbox("Role Required", role_options)
 
 # Show tutors who are approved and match the required role and language/availability
 def _language_column_for(subject_text: str):
@@ -193,9 +194,30 @@ try:
     lang_col = _language_column_for(subject)
 
     eligible_tutors = []
+    def _normalize(r):
+        if not r:
+            return r
+        r = str(r)
+        if "Both" in r:
+            return "Both"
+        return r
+
+    def role_matches(tutor_role, required_role):
+        tr = _normalize(tutor_role)
+        rr = _normalize(required_role)
+        if not tr or not rr:
+            return False
+        if tr == rr:
+            return True
+        if tr == "All of the Above":
+            return True
+        if rr in ("Reader", "Scribe") and tr == "Both":
+            return True
+        return False
+
     for t in all_tutors:
         # role match
-        if t.get("roles") not in [role_required, "Both"]:
+        if not role_matches(t.get('roles'), role_required):
             continue
         # language match (if applicable)
         if lang_col:

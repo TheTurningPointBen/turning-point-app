@@ -496,18 +496,96 @@ with st.expander("Create Manual Booking (Admin)"):
         start_time = st.time_input("Start Time", value=time(7, 45), key="admin_manual_start_time")
         duration = st.number_input("Duration (minutes)", min_value=30, max_value=480, value=60, key="admin_manual_duration")
         extra_time = st.number_input("Extra Time (minutes)", min_value=0, max_value=120, value=0, key="admin_manual_extra_time")
-        role_required = st.selectbox("Role Required", ["Reader", "Scribe", "Both"], key="admin_manual_role")
+        role_options = ["Reader", "Scribe", "Both (Reader & Scribe)", "Invigilator", "Prompter", "All of the Above"]
+        role_required = st.selectbox("Role Required", role_options, key="admin_manual_role")
 
         # Tutor selection (optional)
+        def _language_column_for(subject_text: str):
+            if not subject_text:
+                return None
+            s = subject_text.strip().lower()
+            mapping = {
+                'afrikaans': 'afrikaans',
+                'isizulu': 'isizulu',
+                'zulu': 'isizulu',
+                'setswana': 'setswana',
+                'isixhosa': 'isixhosa',
+                'xhosa': 'isixhosa',
+                'french': 'french'
+            }
+            return mapping.get(s)
+
+        def _tutor_is_available(tutor_id, exam_date_obj, start_time_obj, duration_minutes):
+            try:
+                u_res = supabase.table('tutor_unavailability').select('*').eq('tutor_id', tutor_id).lte('start_date', exam_date_obj.isoformat()).gte('end_date', exam_date_obj.isoformat()).execute()
+                entries = u_res.data or []
+                if not entries:
+                    return True
+                import datetime as _dt
+                bstart_dt = _dt.datetime.combine(exam_date_obj, start_time_obj)
+                bend_dt = bstart_dt + _dt.timedelta(minutes=duration_minutes)
+                for e in entries:
+                    if not e.get('start_time') or not e.get('end_time'):
+                        return False
+                    try:
+                        es = _dt.datetime.strptime(e.get('start_time'), '%H:%M:%S').time()
+                        ee = _dt.datetime.strptime(e.get('end_time'), '%H:%M:%S').time()
+                    except Exception:
+                        return False
+                    estart_dt = _dt.datetime.combine(exam_date_obj, es)
+                    eend_dt = _dt.datetime.combine(exam_date_obj, ee)
+                    latest_start = max(bstart_dt, estart_dt)
+                    earliest_end = min(bend_dt, eend_dt)
+                    overlap = (earliest_end - latest_start).total_seconds()
+                    if overlap > 0:
+                        return False
+                return True
+            except Exception:
+                return False
+
+        # fetch tutors with full data to allow filtering
         try:
-            tres = supabase.table('tutors').select('id,name,surname').eq('approved', True).order('name').execute()
+            tres = supabase.table('tutors').select('*').eq('approved', True).order('name').execute()
             tutors = tres.data or []
         except Exception:
             tutors = []
 
+        # normalize roles stored labels
+        def _normalize(r):
+            if not r:
+                return r
+            r = str(r)
+            if "Both" in r:
+                return "Both"
+            return r
+
+        def role_matches(tutor_role, required_role):
+            tr = _normalize(tutor_role)
+            rr = _normalize(required_role)
+            if not tr or not rr:
+                return False
+            if tr == rr:
+                return True
+            if tr == "All of the Above":
+                return True
+            if rr in ("Reader", "Scribe") and tr == "Both":
+                return True
+            return False
+
         tutor_opts = ["Unassigned"]
         tutor_map = {"Unassigned": None}
+
+        lang_col = _language_column_for(subject)
+        exam_date_obj = exam_date if exam_date else None
+
         for t in tutors:
+            if not role_matches(t.get('roles'), role_required):
+                continue
+            if lang_col and not t.get(lang_col):
+                continue
+            if exam_date_obj and start_time:
+                if not _tutor_is_available(t.get('id'), exam_date_obj, start_time, duration):
+                    continue
             label = f"{(t.get('name') or '')} {(t.get('surname') or '')}".strip() or str(t.get('id'))
             tutor_opts.append(label)
             tutor_map[label] = t.get('id')

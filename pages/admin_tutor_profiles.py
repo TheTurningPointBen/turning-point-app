@@ -119,7 +119,7 @@ else:
                         phone_in = st.text_input("Phone", value=tutor.get('phone') or "")
                         email_in = st.text_input("Email", value=tutor.get('email') or "")
                         city_in = st.text_input("City", value=tutor.get('city') or "")
-                        roles_in = st.text_input("Roles (Reader/Scribe/Both)", value=tutor.get('roles') or "")
+                        roles_in = st.text_input("Roles (Reader/Scribe/Both/Invigilator/Prompter/All of the Above)", value=tutor.get('roles') or "")
                         notes_in = st.text_area("Notes", value=tutor.get('notes') or "")
                         approved_in = st.checkbox("Approved", value=bool(tutor.get('approved')))
 
@@ -208,7 +208,7 @@ else:
                 phone = st.text_input("Phone", value=tutor.get('phone') or "")
                 email = st.text_input("Email", value=tutor.get('email') or "")
                 city = st.text_input("City", value=tutor.get('city') or "")
-                roles = st.text_input("Roles (Reader/Scribe/Both)", value=tutor.get('roles') or "")
+                roles = st.text_input("Roles (Reader/Scribe/Both/Invigilator/Prompter/All of the Above)", value=tutor.get('roles') or "")
                 approved = st.checkbox("Approved", value=bool(tutor.get('approved')))
                 notes = st.text_area("Notes", value=tutor.get('notes') or "")
 

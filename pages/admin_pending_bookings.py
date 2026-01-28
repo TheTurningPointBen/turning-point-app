@@ -107,10 +107,91 @@ for booking in bookings:
     try:
         tutors_res = supabase.table("tutors").select("*").eq("approved", True).execute()
         suitable = []
+        def _normalize(r):
+            if not r:
+                return r
+            r = str(r)
+            if "Both" in r:
+                return "Both"
+            return r
+
+        def role_matches(tutor_role, required_role):
+            tr = _normalize(tutor_role)
+            rr = _normalize(required_role)
+            if not tr or not rr:
+                return False
+            if tr == rr:
+                return True
+            if tr == "All of the Above":
+                return True
+            if rr in ("Reader", "Scribe") and tr == "Both":
+                return True
+            return False
+
+        def _language_column_for(subject_text: str):
+            if not subject_text:
+                return None
+            s = subject_text.strip().lower()
+            mapping = {
+                'afrikaans': 'afrikaans',
+                'isizulu': 'isizulu',
+                'zulu': 'isizulu',
+                'setswana': 'setswana',
+                'isixhosa': 'isixhosa',
+                'xhosa': 'isixhosa',
+                'french': 'french'
+            }
+            return mapping.get(s)
+
+        def _tutor_is_available(tutor_id, exam_date_obj, start_time_obj, duration_minutes):
+            try:
+                u_res = supabase.table('tutor_unavailability').select('*').eq('tutor_id', tutor_id).lte('start_date', exam_date_obj.isoformat()).gte('end_date', exam_date_obj.isoformat()).execute()
+                entries = u_res.data or []
+                if not entries:
+                    return True
+                import datetime as _dt
+                bstart_dt = _dt.datetime.combine(exam_date_obj, start_time_obj)
+                bend_dt = bstart_dt + _dt.timedelta(minutes=duration_minutes)
+                for e in entries:
+                    if not e.get('start_time') or not e.get('end_time'):
+                        return False
+                    try:
+                        es = _dt.datetime.strptime(e.get('start_time'), '%H:%M:%S').time()
+                        ee = _dt.datetime.strptime(e.get('end_time'), '%H:%M:%S').time()
+                    except Exception:
+                        return False
+                    estart_dt = _dt.datetime.combine(exam_date_obj, es)
+                    eend_dt = _dt.datetime.combine(exam_date_obj, ee)
+                    latest_start = max(bstart_dt, estart_dt)
+                    earliest_end = min(bend_dt, eend_dt)
+                    overlap = (earliest_end - latest_start).total_seconds()
+                    if overlap > 0:
+                        return False
+                return True
+            except Exception:
+                return False
+
+        # parse booking exam date and start_time
+        try:
+            exam_date_obj = datetime.fromisoformat(booking.get('exam_date')).date() if booking.get('exam_date') else None
+        except Exception:
+            exam_date_obj = None
+        try:
+            start_time = datetime.strptime(booking.get('start_time'), "%H:%M:%S").time() if booking.get('start_time') else None
+        except Exception:
+            start_time = None
+
+        lang_col = _language_column_for(booking.get('subject'))
+
         for t in (tutors_res.data or []):
-            roles = t.get("roles")
-            if roles == "Both" or booking.get("role_required") in roles:
-                suitable.append(t)
+            if not role_matches(t.get('roles'), booking.get('role_required')):
+                continue
+            if lang_col and not t.get(lang_col):
+                continue
+            if start_time and exam_date_obj:
+                if not _tutor_is_available(t.get('id'), exam_date_obj, start_time, booking.get('duration') or 60):
+                    continue
+            suitable.append(t)
         suitable = suitable[:5]
     except Exception:
         suitable = []
