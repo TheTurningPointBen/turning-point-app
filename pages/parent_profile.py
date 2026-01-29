@@ -202,13 +202,33 @@ if profile:
                         except Exception:
                             st.markdown("<script>window.location.reload()</script>", unsafe_allow_html=True)
                     else:
-                        # If the DB doesn't have a `children` column (older schema), retry without it
+                        # If the DB doesn't have certain columns (older schema), retry without them
                         try:
                             msg = err.get('message') if isinstance(err, dict) else str(err)
                         except Exception:
                             msg = str(err)
 
-                        if msg and 'children' in msg and ('Could not find' in msg or 'could not find' in msg):
+                        # Fallback for missing `email` column
+                        if msg and 'email' in msg and ('Could not find' in msg or 'could not find' in msg):
+                            fallback = payload.copy()
+                            fallback.pop('email', None)
+                            try:
+                                upd2 = supabase.table('parents').update(fallback).eq('id', profile.get('id')).execute()
+                                if getattr(upd2, 'error', None) is None:
+                                    st.success("Profile updated (saved without 'email' field; database schema lacks that column).")
+                                    st.warning("Database does not have an 'email' column; consider adding it for full functionality.")
+                                    st.session_state['editing_profile'] = False
+                                    try:
+                                        st.experimental_rerun()
+                                    except Exception:
+                                        st.markdown("<script>window.location.reload()</script>", unsafe_allow_html=True)
+                                else:
+                                    st.error(f"Failed to update profile: {getattr(upd2, 'error')}")
+                            except Exception as e2:
+                                st.error(f"Failed to update profile: {e2}")
+
+                        # Fallback for missing `children` column
+                        elif msg and 'children' in msg and ('Could not find' in msg or 'could not find' in msg):
                             fallback = payload.copy()
                             fallback.pop('children', None)
                             try:
@@ -274,7 +294,31 @@ else:
                     except Exception:
                         st.markdown("<script>window.location.reload()</script>", unsafe_allow_html=True)
                 else:
-                    st.error(f"Failed to save profile. Error: {getattr(insert_res, 'error', None)}")
+                    err = getattr(insert_res, 'error', None)
+                    # If DB lacks `email` column, retry without it
+                    try:
+                        msg = err.get('message') if isinstance(err, dict) else str(err)
+                    except Exception:
+                        msg = str(err)
+
+                    if msg and 'email' in msg and ('Could not find' in msg or 'could not find' in msg):
+                        fallback = payload.copy()
+                        fallback.pop('email', None)
+                        try:
+                            retry = supabase.table('parents').insert(fallback).execute()
+                            if getattr(retry, 'error', None) is None and getattr(retry, 'data', None):
+                                st.success("Profile saved (without 'email' field; database schema lacks that column).")
+                                st.warning("Database does not have an 'email' column; consider adding it for full functionality.")
+                                try:
+                                    st.experimental_rerun()
+                                except Exception:
+                                    st.markdown("<script>window.location.reload()</script>", unsafe_allow_html=True)
+                            else:
+                                st.error(f"Failed to save profile. Error: {getattr(retry, 'error', None)}")
+                        except Exception as e2:
+                            st.error(f"Failed to save profile: {e2}")
+                    else:
+                        st.error(f"Failed to save profile. Error: {err}")
         else:
             st.error("Please fill in all fields.")
 

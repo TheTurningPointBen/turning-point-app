@@ -77,6 +77,16 @@ def safe_rerun():
     except Exception:
         st.markdown("<script>window.location.reload()</script>", unsafe_allow_html=True)
 
+
+# Normalize role values for DB storage (display labels may differ)
+def _role_to_db(r):
+    if not r:
+        return r
+    s = str(r).strip()
+    if s.startswith("Both"):
+        return "Both"
+    return s
+
 if not profile:
     st.subheader("Complete Your Tutor Profile")
     name = st.text_input("Name")
@@ -114,7 +124,7 @@ if not profile:
                     "city": city,
                     "email": email,
                     "transport": transport,
-                    "roles": roles,
+                    "roles": _role_to_db(roles),
                     "afrikaans": bool(afrikaans),
                     "isizulu": bool(isizulu),
                     "setswana": bool(setswana),
@@ -211,7 +221,7 @@ if st.session_state.get("_editing_tutor_profile"):
             "city": city,
             "email": email,
             "transport": transport,
-            "roles": roles,
+            "roles": _role_to_db(roles),
             "afrikaans": bool(afrikaans),
             "isizulu": bool(isizulu),
             "setswana": bool(setswana),
