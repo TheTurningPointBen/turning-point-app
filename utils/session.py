@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 from supabase import create_client
 from config import SUPABASE_URL, SUPABASE_KEY
@@ -65,6 +66,37 @@ def delete_auth_user(user_id: str) -> dict:
     }
     try:
         resp = httpx.delete(url, headers=headers, timeout=10.0)
+        if resp.status_code in (200, 204):
+            return {'ok': True}
+        else:
+            try:
+                return {'error': resp.json()}
+            except Exception:
+                return {'error': f'Status {resp.status_code}: {resp.text}'}
+    except Exception as e:
+        return {'error': str(e)}
+
+
+def set_auth_user_password(user_id: str, new_password: str) -> dict:
+    """Set a Supabase Auth user's password via Admin API using the service role key.
+
+    Requires `SUPABASE_SERVICE_ROLE` env var. Returns {'ok': True} or {'error': msg}.
+    """
+    svc = os.getenv('SUPABASE_SERVICE_ROLE')
+    if not svc:
+        return {'error': 'SUPABASE_SERVICE_ROLE not configured'}
+    if not SUPABASE_URL:
+        return {'error': 'SUPABASE_URL not configured'}
+
+    url = f"{SUPABASE_URL.rstrip('/')}/auth/v1/admin/users/{user_id}"
+    headers = {
+        'apikey': svc,
+        'Authorization': f'Bearer {svc}',
+        'Content-Type': 'application/json'
+    }
+    body = {'password': new_password}
+    try:
+        resp = httpx.put(url, headers=headers, json=body, timeout=10.0)
         if resp.status_code in (200, 204):
             return {'ok': True}
         else:

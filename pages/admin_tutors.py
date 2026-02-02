@@ -6,7 +6,10 @@ try:
 except Exception:
     pass
 from utils.session import get_supabase
-from utils.session import delete_auth_user
+from utils.session import delete_auth_user, set_auth_user_password
+from utils.email import send_email
+import secrets
+import string
 
 supabase = get_supabase()
 
@@ -117,3 +120,27 @@ for tutor in res.data:
                     safe_rerun()
                 else:
                     st.error(f"Failed to delete auth user: {res.get('error')}")
+
+            # Allow admins to set a temporary password (will be emailed to the tutor)
+            if st.button('Set temporary password and email user', key=f'set_pw_{tutor.get("id")}'):
+                tutor_email = tutor.get('email')
+                if not tutor_email:
+                    st.error('Tutor has no email on file; cannot email temporary password.')
+                else:
+                    # generate a random 12-character temporary password
+                    alphabet = string.ascii_letters + string.digits
+                    temp_pw = ''.join(secrets.choice(alphabet) for _ in range(12))
+                    resp = set_auth_user_password(user_id, temp_pw)
+                    if resp.get('ok'):
+                        # send email with the temporary password
+                        subject = 'Your temporary password'
+                        body = f"Hello {tutor.get('name') or ''},\n\nAn administrator has set a temporary password for your account.\n\nTemporary password: {temp_pw}\n\nPlease log in and change your password immediately.\n\nIf you did not request this, contact the admin.\n"
+                        mail = send_email(tutor_email, subject, body)
+                        if mail.get('ok'):
+                            st.success('Temporary password set and emailed to the tutor.')
+                            safe_rerun()
+                        else:
+                            st.warning('Password set but failed to send email to tutor. See details.')
+                            st.write(mail.get('error'))
+                    else:
+                        st.error(f"Failed to set password: {resp.get('error')}")
