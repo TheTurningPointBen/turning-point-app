@@ -44,3 +44,33 @@ def restore_session_from_refresh(refresh_token: str) -> dict | None:
         return resp.json()
     except Exception:
         return None
+
+
+def delete_auth_user(user_id: str) -> dict:
+    """Delete a Supabase Auth user via the Admin API using the service role key.
+
+    Requires environment variable `SUPABASE_SERVICE_ROLE` to be set.
+    Returns {'ok': True} on success or {'error': 'msg'} on failure.
+    """
+    svc = os.getenv('SUPABASE_SERVICE_ROLE')
+    if not svc:
+        return {'error': 'SUPABASE_SERVICE_ROLE not configured'}
+    if not SUPABASE_URL:
+        return {'error': 'SUPABASE_URL not configured'}
+
+    url = f"{SUPABASE_URL.rstrip('/')}/auth/v1/admin/users/{user_id}"
+    headers = {
+        'apikey': svc,
+        'Authorization': f'Bearer {svc}'
+    }
+    try:
+        resp = httpx.delete(url, headers=headers, timeout=10.0)
+        if resp.status_code in (200, 204):
+            return {'ok': True}
+        else:
+            try:
+                return {'error': resp.json()}
+            except Exception:
+                return {'error': f'Status {resp.status_code}: {resp.text}'}
+    except Exception as e:
+        return {'error': str(e)}

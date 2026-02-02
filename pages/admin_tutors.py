@@ -6,6 +6,7 @@ try:
 except Exception:
     pass
 from utils.session import get_supabase
+from utils.session import delete_auth_user
 
 supabase = get_supabase()
 
@@ -105,3 +106,14 @@ for tutor in res.data:
                 safe_rerun()
             except Exception as e:
                 st.error(f'Failed to delete tutor: {e}')
+
+        # If tutor has a linked auth user_id, allow deleting the Auth user (requires SUPABASE_SERVICE_ROLE env var)
+        user_id = tutor.get('user_id')
+        if user_id:
+            if st.button('Delete linked Auth user', key=f'delete_auth_{tutor.get("id")}'):
+                res = delete_auth_user(user_id)
+                if res.get('ok'):
+                    st.success('Supabase Auth user deleted.')
+                    safe_rerun()
+                else:
+                    st.error(f"Failed to delete auth user: {res.get('error')}")
