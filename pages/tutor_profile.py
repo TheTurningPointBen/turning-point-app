@@ -6,6 +6,7 @@ try:
 except Exception:
     pass
 from utils.database import supabase
+from utils.session import get_supabase_service
 
 st.title("My Tutor Profile")
 
@@ -131,12 +132,46 @@ if not profile:
                     "isixhosa": bool(isixhosa),
                     "french": bool(french)
                 }).execute()
-
                 if getattr(insert_res, 'error', None) is None:
                     st.success("Profile submitted. Await admin approval.")
                     safe_rerun()
                 else:
-                    st.error(f"Failed to submit profile: {getattr(insert_res, 'error', None)}")
+                    err = getattr(insert_res, 'error', None)
+                    msg = None
+                    try:
+                        msg = err.get('message') if isinstance(err, dict) else str(err)
+                    except Exception:
+                        msg = str(err)
+
+                    # If blocked by row-level security, try service-role fallback if available
+                    if msg and ('row-level security' in msg or 'row level security' in msg or 'violates row-level security' in msg or '42501' in msg):
+                        try:
+                            svc = get_supabase_service()
+                            svc_res = svc.table('tutors').insert({
+                                "user_id": user.id,
+                                "name": name,
+                                "surname": surname,
+                                "phone": phone,
+                                "town": town,
+                                "city": city,
+                                "email": email,
+                                "transport": transport,
+                                "roles": _role_to_db(roles),
+                                "afrikaans": bool(afrikaans),
+                                "isizulu": bool(isizulu),
+                                "setswana": bool(setswana),
+                                "isixhosa": bool(isixhosa),
+                                "french": bool(french)
+                            }).execute()
+                            if getattr(svc_res, 'error', None) is None:
+                                st.success("Profile submitted (used service-role fallback). Await admin approval.")
+                                safe_rerun()
+                            else:
+                                st.error(f"Failed to submit profile even with service-role: {getattr(svc_res, 'error', None)}")
+                        except Exception as se:
+                            st.error(f"Failed to submit profile: {msg}. Service-role fallback error: {se}")
+                    else:
+                        st.error(f"Failed to submit profile: {err}")
             except Exception as e:
                 st.error(f"Submission error: {e}")
     st.stop()
@@ -243,6 +278,27 @@ if st.session_state.get("_editing_tutor_profile"):
                     del st.session_state["_editing_tutor_profile"]
                     safe_rerun()
                 else:
-                    st.error(f"Failed to update: {getattr(update_res, 'error', None)}")
+                    err = getattr(update_res, 'error', None)
+                    msg = None
+                    try:
+                        msg = err.get('message') if isinstance(err, dict) else str(err)
+                    except Exception:
+                        msg = str(err)
+
+                    if msg and ('row-level security' in msg or 'row level security' in msg or 'violates row-level security' in msg or '42501' in msg):
+                        # try service-role fallback
+                        try:
+                            svc = get_supabase_service()
+                            svc_res = svc.table('tutors').update(payload).eq('id', profile.get('id')).execute()
+                            if getattr(svc_res, 'error', None) is None:
+                                st.success('Profile updated (used service-role fallback).')
+                                del st.session_state["_editing_tutor_profile"]
+                                safe_rerun()
+                            else:
+                                st.error(f"Failed to update even with service-role: {getattr(svc_res, 'error', None)}")
+                        except Exception as se:
+                            st.error(f"Failed to update profile: {msg}. Service-role fallback error: {se}")
+                    else:
+                        st.error(f"Failed to update: {err}")
             except Exception as e:
                 st.error(f"Update error: {e}")

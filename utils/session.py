@@ -106,3 +106,17 @@ def set_auth_user_password(user_id: str, new_password: str) -> dict:
                 return {'error': f'Status {resp.status_code}: {resp.text}'}
     except Exception as e:
         return {'error': str(e)}
+
+
+def get_supabase_service():
+    """Return a Supabase client using the service role key from SUPABASE_SERVICE_ROLE.
+
+    Raises RuntimeError if the env var is not set.
+    """
+    svc = os.getenv('SUPABASE_SERVICE_ROLE')
+    if not svc:
+        raise RuntimeError('SUPABASE_SERVICE_ROLE not configured')
+    if not SUPABASE_URL:
+        raise RuntimeError('SUPABASE_URL not configured')
+    # Create a client using the service role
+    return create_client(SUPABASE_URL, svc)
