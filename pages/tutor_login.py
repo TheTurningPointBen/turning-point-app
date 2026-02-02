@@ -192,19 +192,39 @@ with tab1:
                 st.error("Please enter your email.")
             else:
                 try:
-                    # Try common supabase client methods for password reset
+                    # Try common supabase client methods for password reset and show any response details.
+                    res = None
+                    err = None
                     try:
                         res = supabase.auth.reset_password_for_email(fp_email)
-                    except Exception:
+                    except Exception as e1:
+                        err = e1
                         try:
                             res = supabase.auth.api.reset_password_for_email(fp_email)
-                        except Exception:
+                        except Exception as e2:
+                            # capture second error if present
+                            err = e2
                             res = None
 
                     if res is None:
-                        st.warning("Password reset request could not be sent — please check server logs or contact admin.")
+                        # Provide the admin/user with helpful guidance and any error details
+                        st.warning("Password reset request could not be sent. Check Supabase SMTP settings or server logs.")
+                        if err:
+                            try:
+                                st.exception(err)
+                            except Exception:
+                                st.write(str(err))
                     else:
+                        # If the client returned a response object, show success message.
                         st.success("If that email exists in our system, password reset instructions have been sent.")
+                        try:
+                            # show debug info in case the response contains details (safe for admin debugging)
+                            if getattr(res, 'error', None):
+                                st.write(res.error)
+                            elif isinstance(res, dict) and res.get('error'):
+                                st.write(res.get('error'))
+                        except Exception:
+                            pass
                 except Exception as e:
                     st.error("Failed to request password reset. Please try again later.")
                     try:

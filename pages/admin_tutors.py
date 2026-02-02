@@ -96,3 +96,12 @@ for tutor in res.data:
                     safe_rerun()
                 except Exception as e:
                     st.error(f'Failed to clear transport: {e}')
+
+        # Allow admins to delete tutor records
+        if st.button("Delete tutor record", key=f"delete_tutor_{tutor.get('id')}"):
+            try:
+                supabase.table('tutors').delete().eq('id', tutor.get('id')).execute()
+                st.success('Tutor record deleted.')
+                safe_rerun()
+            except Exception as e:
+                st.error(f'Failed to delete tutor: {e}')
