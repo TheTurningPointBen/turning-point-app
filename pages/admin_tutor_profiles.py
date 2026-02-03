@@ -3,6 +3,11 @@ from utils.ui import hide_sidebar
 
 hide_sidebar()
 from utils.database import supabase
+from utils.email import send_email, send_admin_email
+from utils.session import set_auth_user_password, get_supabase_service
+import os
+import secrets
+import string
 
 st.title("Tutor Profiles — Admin")
 
@@ -260,3 +265,63 @@ else:
                                 st.error(f"Update failed: {getattr(upd, 'error', upd)}")
                         except Exception as e:
                             st.error(f"Failed to update tutor: {e}")
+
+            # Allow admin to set a temporary password for the tutor if they have a linked auth user
+            user_id = tutor.get('user_id')
+            if user_id:
+                setpw_flag = f'confirm_set_pw_{tutor_id}'
+
+                svc_configured = bool(os.getenv('SUPABASE_SERVICE_ROLE'))
+                if not svc_configured:
+                    st.warning('SUPABASE_SERVICE_ROLE not configured — admin password resets are disabled. Add the service role key to your environment to enable this feature.')
+                else:
+                    if st.button('Set temporary password and email tutor', key=f"set_pw_{tutor_id}"):
+                        st.session_state[setpw_flag] = True
+
+                if st.session_state.get(setpw_flag):
+                    st.info('A temporary password will be generated and emailed to the tutor.')
+                    colx, coly = st.columns([1, 3])
+                    with colx:
+                        if st.button('Confirm set password', key=f'confirm_set_pw_confirm_{tutor_id}'):
+                            tutor_email = tutor.get('email')
+                            st.session_state.pop(setpw_flag, None)
+                            if not tutor_email:
+                                st.error('Tutor has no email on file; cannot email temporary password.')
+                            else:
+                                alphabet = string.ascii_letters + string.digits
+                                temp_pw = ''.join(secrets.choice(alphabet) for _ in range(12))
+                                resp = set_auth_user_password(user_id, temp_pw)
+                                if resp.get('ok'):
+                                    subject = 'Your temporary password'
+                                    body = f"Hello {tutor.get('name') or ''},\n\nAn administrator has set a temporary password for your account.\n\nTemporary password: {temp_pw}\n\nPlease log in and change your password immediately.\n\nIf you did not request this, contact the admin.\n"
+                                    mail = send_email(tutor_email, subject, body)
+                                    if mail.get('ok'):
+                                        # audit and notify
+                                        try:
+                                            svc = get_supabase_service()
+                                            svc.table('admin_actions').insert({
+                                                'admin_email': st.session_state.get('email'),
+                                                'action': 'set_temporary_password',
+                                                'target_type': 'tutor',
+                                                'target_id': str(tutor.get('id')),
+                                                'details': {'user_id': user_id}
+                                            }).execute()
+                                        except Exception:
+                                            pass
+                                        try:
+                                            send_admin_email('Admin action: set temporary password', f"Admin {st.session_state.get('email')} set temporary password for tutor {tutor.get('id')}")
+                                        except Exception:
+                                            pass
+                                        st.success('Temporary password set and emailed to the tutor.')
+                                        try:
+                                            st.experimental_rerun()
+                                        except Exception:
+                                            pass
+                                    else:
+                                        st.warning('Password set but failed to send email to tutor. See details.')
+                                        st.write(mail.get('error'))
+                                else:
+                                    st.error(f"Failed to set password: {resp.get('error')}")
+                    with coly:
+                        if st.button('Cancel', key=f'confirm_set_pw_cancel_{tutor_id}'):
+                            st.session_state.pop(setpw_flag, None)

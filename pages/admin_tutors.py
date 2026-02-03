@@ -6,7 +6,8 @@ try:
 except Exception:
     pass
 from utils.session import get_supabase
-from utils.session import delete_auth_user, set_auth_user_password
+from utils.session import delete_auth_user, set_auth_user_password, get_supabase_service
+import os
 from utils.email import send_email
 import secrets
 import string
@@ -101,46 +102,136 @@ for tutor in res.data:
                 except Exception as e:
                     st.error(f'Failed to clear transport: {e}')
 
-        # Allow admins to delete tutor records
+        # Allow admins to delete tutor records (require typing DELETE)
+        del_rec_flag = f'confirm_delete_tutor_record_{tutor.get("id")}'
         if st.button("Delete tutor record", key=f"delete_tutor_{tutor.get('id')}"):
-            try:
-                supabase.table('tutors').delete().eq('id', tutor.get('id')).execute()
-                st.success('Tutor record deleted.')
-                safe_rerun()
-            except Exception as e:
-                st.error(f'Failed to delete tutor: {e}')
+            st.session_state[del_rec_flag] = True
+
+        if st.session_state.get(del_rec_flag):
+            confirm = st.text_input('Type DELETE to confirm deletion of this tutor record', key=f'del_rec_input_{tutor.get("id")}')
+            col1, col2 = st.columns([1, 3])
+            with col1:
+                if confirm == 'DELETE' and st.button('Confirm delete record', key=f'confirm_delete_tutor_record_confirm_{tutor.get("id")}'):
+                    try:
+                        supabase.table('tutors').delete().eq('id', tutor.get('id')).execute()
+                        # audit
+                        try:
+                            svc = get_supabase_service()
+                            svc.table('admin_actions').insert({
+                                'admin_email': st.session_state.get('email'),
+                                'action': 'delete_tutor_record',
+                                'target_type': 'tutor',
+                                'target_id': str(tutor.get('id')),
+                                'details': {}
+                            }).execute()
+                        except Exception:
+                            pass
+                        try:
+                            from utils.email import send_admin_email
+                            send_admin_email('Admin action: delete tutor record', f"Admin {st.session_state.get('email')} deleted tutor record {tutor.get('id')}")
+                        except Exception:
+                            pass
+                        st.success('Tutor record deleted.')
+                        safe_rerun()
+                    except Exception as e:
+                        st.error(f'Failed to delete tutor: {e}')
+            with col2:
+                if st.button('Cancel', key=f'confirm_delete_tutor_record_cancel_{tutor.get("id")}'):
+                    st.session_state.pop(del_rec_flag, None)
 
         # If tutor has a linked auth user_id, allow deleting the Auth user (requires SUPABASE_SERVICE_ROLE env var)
         user_id = tutor.get('user_id')
         if user_id:
-            if st.button('Delete linked Auth user', key=f'delete_auth_{tutor.get("id")}'):
-                res = delete_auth_user(user_id)
-                if res.get('ok'):
-                    st.success('Supabase Auth user deleted.')
-                    safe_rerun()
-                else:
-                    st.error(f"Failed to delete auth user: {res.get('error')}")
+            delete_flag = f'confirm_delete_auth_{tutor.get("id")}'
+            setpw_flag = f'confirm_set_pw_{tutor.get("id")}'
 
-            # Allow admins to set a temporary password (will be emailed to the tutor)
-            if st.button('Set temporary password and email user', key=f'set_pw_{tutor.get("id")}'):
-                tutor_email = tutor.get('email')
-                if not tutor_email:
-                    st.error('Tutor has no email on file; cannot email temporary password.')
-                else:
-                    # generate a random 12-character temporary password
-                    alphabet = string.ascii_letters + string.digits
-                    temp_pw = ''.join(secrets.choice(alphabet) for _ in range(12))
-                    resp = set_auth_user_password(user_id, temp_pw)
-                    if resp.get('ok'):
-                        # send email with the temporary password
-                        subject = 'Your temporary password'
-                        body = f"Hello {tutor.get('name') or ''},\n\nAn administrator has set a temporary password for your account.\n\nTemporary password: {temp_pw}\n\nPlease log in and change your password immediately.\n\nIf you did not request this, contact the admin.\n"
-                        mail = send_email(tutor_email, subject, body)
-                        if mail.get('ok'):
-                            st.success('Temporary password set and emailed to the tutor.')
-                            safe_rerun()
+            # Delete linked auth user — require typing DELETE to confirm
+            if st.button('Delete linked Auth user', key=f'delete_auth_{tutor.get("id")}'):
+                st.session_state[delete_flag] = True
+
+            if st.session_state.get(delete_flag):
+                confirm = st.text_input('Type DELETE to confirm deletion', key=f'del_input_{tutor.get("id")}')
+                colc, cola = st.columns([1, 3])
+                with colc:
+                    if confirm == 'DELETE' and st.button('Confirm delete', key=f'confirm_delete_auth_confirm_{tutor.get("id")}'):
+                        res = delete_auth_user(user_id)
+                        # record audit
+                        try:
+                            svc = get_supabase_service()
+                            svc.table('admin_actions').insert({
+                                'admin_email': st.session_state.get('email'),
+                                'action': 'delete_auth_user',
+                                'target_type': 'tutor',
+                                'target_id': str(tutor.get('id')),
+                                'details': {'user_id': user_id}
+                            }).execute()
+                        except Exception:
+                            pass
+                        st.session_state.pop(delete_flag, None)
+                        if res.get('ok'):
+                            st.success('Supabase Auth user deleted.')
                         else:
-                            st.warning('Password set but failed to send email to tutor. See details.')
-                            st.write(mail.get('error'))
-                    else:
-                        st.error(f"Failed to set password: {resp.get('error')}")
+                            st.error(f"Failed to delete auth user: {res.get('error')}")
+                        try:
+                            from utils.email import send_admin_email
+                            send_admin_email('Admin action: delete auth user', f"Admin {st.session_state.get('email')} deleted auth user {user_id} for tutor {tutor.get('id')}")
+                        except Exception:
+                            pass
+                        safe_rerun()
+                with cola:
+                    if st.button('Cancel', key=f'confirm_delete_auth_cancel_{tutor.get("id")}'):
+                        st.session_state.pop(delete_flag, None)
+
+            # Set temporary password — keep confirm then record audit + notify
+            svc_configured = bool(os.getenv('SUPABASE_SERVICE_ROLE'))
+            if not svc_configured:
+                st.warning('SUPABASE_SERVICE_ROLE not configured — admin password resets are disabled. Add the service role key to your environment to enable this feature.')
+            else:
+                if st.button('Set temporary password and email user', key=f"set_pw_{tutor.get('id')}"):
+                    st.session_state[setpw_flag] = True
+
+            if st.session_state.get(setpw_flag):
+                st.info('A temporary password will be generated and emailed to the tutor.')
+                colx, coly = st.columns([1, 3])
+                with colx:
+                    if st.button('Confirm set password', key=f'confirm_set_pw_confirm_{tutor.get("id")}'):
+                        tutor_email = tutor.get('email')
+                        st.session_state.pop(setpw_flag, None)
+                        if not tutor_email:
+                            st.error('Tutor has no email on file; cannot email temporary password.')
+                        else:
+                            alphabet = string.ascii_letters + string.digits
+                            temp_pw = ''.join(secrets.choice(alphabet) for _ in range(12))
+                            resp = set_auth_user_password(user_id, temp_pw)
+                            if resp.get('ok'):
+                                subject = 'Your temporary password'
+                                body = f"Hello {tutor.get('name') or ''},\n\nAn administrator has set a temporary password for your account.\n\nTemporary password: {temp_pw}\n\nPlease log in and change your password immediately.\n\nIf you did not request this, contact the admin.\n"
+                                mail = send_email(tutor_email, subject, body)
+                                if mail.get('ok'):
+                                    # audit and notify
+                                    try:
+                                        svc = get_supabase_service()
+                                        svc.table('admin_actions').insert({
+                                            'admin_email': st.session_state.get('email'),
+                                            'action': 'set_temporary_password',
+                                            'target_type': 'tutor',
+                                            'target_id': str(tutor.get('id')),
+                                            'details': {'user_id': user_id}
+                                        }).execute()
+                                    except Exception:
+                                        pass
+                                    try:
+                                        from utils.email import send_admin_email
+                                        send_admin_email('Admin action: set temporary password', f"Admin {st.session_state.get('email')} set temporary password for tutor {tutor.get('id')}")
+                                    except Exception:
+                                        pass
+                                    st.success('Temporary password set and emailed to the tutor.')
+                                    safe_rerun()
+                                else:
+                                    st.warning('Password set but failed to send email to tutor. See details.')
+                                    st.write(mail.get('error'))
+                            else:
+                                st.error(f"Failed to set password: {resp.get('error')}")
+                with coly:
+                    if st.button('Cancel', key=f'confirm_set_pw_cancel_{tutor.get("id")}'):
+                        st.session_state.pop(setpw_flag, None)

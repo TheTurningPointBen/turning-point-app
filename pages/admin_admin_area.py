@@ -1,7 +1,9 @@
+import os
 import streamlit as st
 from utils.ui import hide_sidebar
 from utils.database import supabase
-from utils.email import send_admin_email
+from utils.email import send_admin_email, send_email
+from utils.session import delete_auth_user, set_auth_user_password, get_supabase_service, get_supabase
 from datetime import date, datetime, time, timedelta
 
 hide_sidebar()
@@ -11,6 +13,13 @@ st.title("Admin Area")
 if not st.session_state.get("authenticated") or st.session_state.get("role") != "admin":
     st.warning("Please log in as admin on the Admin page first.")
     st.stop()
+
+# Non-secret indicator: show whether SUPABASE_SERVICE_ROLE is configured
+_svc_present = bool(os.getenv('SUPABASE_SERVICE_ROLE'))
+if _svc_present:
+    st.info('SUPABASE_SERVICE_ROLE: configured (service operations enabled)')
+else:
+    st.warning('SUPABASE_SERVICE_ROLE: not configured — admin service operations disabled')
 
 # Top-left small Back button that returns to the Admin Dashboard
 back_col1, back_col2 = st.columns([1, 8])
@@ -654,3 +663,167 @@ with st.expander("Create Manual Booking (Admin)"):
 
         if st.button("Save Manual Booking", key="admin_manual_save"):
             _admin_insert_booking()
+
+
+# -- Manage Parents: allow admin to set temporary passwords or delete linked auth users --
+with st.expander("Manage Parents"):
+    try:
+        pres = supabase.table('parents').select('*').order('parent_name').execute()
+        parents = pres.data or []
+    except Exception as e:
+        st.error(f"Failed to load parents: {e}")
+        parents = []
+
+    if not parents:
+        st.info('No parents found.')
+    else:
+        import secrets, string
+        for p in parents:
+            with st.expander(f"{p.get('parent_name') or p.get('id')}"):
+                st.write(f"📞 {p.get('phone')}")
+                st.write(f"📧 {p.get('email')}")
+                st.write(f"Children: {p.get('children') or p.get('child_name') or ''}")
+
+                user_id = p.get('user_id')
+                if user_id:
+                    delete_flag = f'confirm_delete_parent_auth_{p.get("id")}'
+                    setpw_flag = f'confirm_set_parent_pw_{p.get("id")}'
+
+                    if st.button('Delete linked Auth user', key=f'delete_parent_auth_{p.get("id")}'):
+                        st.session_state[delete_flag] = True
+
+                    if st.session_state.get(delete_flag):
+                        confirm = st.text_input('Type DELETE to confirm deletion', key=f'del_input_parent_{p.get("id")}')
+                        colc, cola = st.columns([1, 3])
+                        with colc:
+                            if confirm == 'DELETE' and st.button('Confirm delete', key=f'confirm_delete_parent_auth_confirm_{p.get("id")}'):
+                                res = delete_auth_user(user_id)
+                                # audit
+                                try:
+                                    svc = get_supabase_service()
+                                    svc.table('admin_actions').insert({
+                                        'admin_email': st.session_state.get('email'),
+                                        'action': 'delete_auth_user',
+                                        'target_type': 'parent',
+                                        'target_id': str(p.get('id')),
+                                        'details': {'user_id': user_id}
+                                    }).execute()
+                                except Exception:
+                                    pass
+                                st.session_state.pop(delete_flag, None)
+                                if res.get('ok'):
+                                    st.success('Supabase Auth user deleted.')
+                                    try:
+                                        st.experimental_rerun()
+                                    except Exception:
+                                        pass
+                                else:
+                                    st.error(f"Failed to delete auth user: {res.get('error')}")
+                                try:
+                                    send_admin_email('Admin action: delete auth user', f"Admin {st.session_state.get('email')} deleted auth user {user_id} for parent {p.get('id')}")
+                                except Exception:
+                                    pass
+                        with cola:
+                            if st.button('Cancel', key=f'confirm_delete_parent_auth_cancel_{p.get("id")}'):
+                                st.session_state.pop(delete_flag, None)
+
+                    if st.button('Set temporary password and email parent', key=f'set_parent_pw_{p.get("id")}'):
+                        st.session_state[setpw_flag] = True
+
+                    if st.session_state.get(setpw_flag):
+                        st.info('A temporary password will be generated and emailed to the parent.')
+                        colx, coly = st.columns([1, 3])
+                        with colx:
+                            if st.button('Confirm set password', key=f'confirm_set_parent_pw_confirm_{p.get("id")}'):
+                                parent_email = p.get('email')
+                                st.session_state.pop(setpw_flag, None)
+                                if not parent_email:
+                                    st.error('Parent has no email on file; cannot email temporary password.')
+                                else:
+                                    alphabet = string.ascii_letters + string.digits
+                                    temp_pw = ''.join(secrets.choice(alphabet) for _ in range(12))
+                                    resp = set_auth_user_password(user_id, temp_pw)
+                                    if resp.get('ok'):
+                                        subject = 'Your temporary password'
+                                        body = f"Hello {p.get('parent_name') or ''},\n\nAn administrator has set a temporary password for your account.\n\nTemporary password: {temp_pw}\n\nPlease log in and change your password immediately.\n\nIf you did not request this, contact the admin.\n"
+                                        mail = send_email(parent_email, subject, body)
+                                        if mail.get('ok'):
+                                            # audit & notify
+                                            try:
+                                                svc = get_supabase_service()
+                                                svc.table('admin_actions').insert({
+                                                    'admin_email': st.session_state.get('email'),
+                                                    'action': 'set_temporary_password',
+                                                    'target_type': 'parent',
+                                                    'target_id': str(p.get('id')),
+                                                    'details': {'user_id': user_id}
+                                                }).execute()
+                                            except Exception:
+                                                pass
+                                            try:
+                                                send_admin_email('Admin action: set temporary password', f"Admin {st.session_state.get('email')} set temporary password for parent {p.get('id')}")
+                                            except Exception:
+                                                pass
+                                            st.success('Temporary password set and emailed to the parent.')
+                                            try:
+                                                st.experimental_rerun()
+                                            except Exception:
+                                                pass
+                                        else:
+                                            st.warning('Password set but failed to send email to parent. See details.')
+                                            st.write(mail.get('error'))
+                                    else:
+                                        st.error(f"Failed to set password: {resp.get('error')}")
+                        with coly:
+                            if st.button('Cancel', key=f'confirm_set_parent_pw_cancel_{p.get("id")}'):
+                                st.session_state.pop(setpw_flag, None)
+
+# Recent admin actions (audit)
+with st.expander("Recent Admin Actions"):
+    actions = []
+    try:
+        try:
+            svc = get_supabase_service()
+        except Exception:
+            # Service role not configured; try public/anon client for read-only access
+            st.info('Service role not configured; attempting public client for read-only admin actions.')
+            svc = get_supabase()
+
+        a_res = svc.table('admin_actions').select('*').order('created_at', desc=True).limit(50).execute()
+        actions = a_res.data or []
+    except Exception as e:
+        # Provide a helpful message if the admin_actions table doesn't exist (PGRST205)
+        msg = None
+        try:
+            if getattr(e, 'args', None):
+                msg = e.args[0]
+        except Exception:
+            msg = str(e)
+
+        if isinstance(msg, dict) and msg.get('code') == 'PGRST205':
+            st.info('No admin_actions table found. Run the SQL migration scripts/add_admin_actions_table.sql in the Supabase SQL editor.')
+        elif isinstance(msg, str) and 'Could not find the table' in msg:
+            st.info('No admin_actions table found. Run the SQL migration scripts/add_admin_actions_table.sql in the Supabase SQL editor.')
+        else:
+            st.error(f'Failed to load admin actions: {e}')
+
+        actions = []
+
+    if not actions:
+        st.info('No admin actions found.')
+    else:
+        rows = []
+        for a in actions:
+            rows.append({
+                'When': a.get('created_at'),
+                'Admin': a.get('admin_email'),
+                'Action': a.get('action'),
+                'Target': f"{a.get('target_type') or ''}:{a.get('target_id') or ''}",
+                'Details': a.get('details')
+            })
+        try:
+            import pandas as pd
+            df = pd.DataFrame(rows)
+            st.dataframe(df)
+        except Exception:
+            st.write(rows)
