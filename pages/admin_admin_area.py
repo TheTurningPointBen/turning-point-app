@@ -21,6 +21,35 @@ if _svc_present:
 else:
     st.warning('SUPABASE_SERVICE_ROLE: not configured — admin service operations disabled')
 
+# SMTP debug: non-secret checks and quick connectivity test
+with st.expander('SMTP Debug'):
+    smtp_host = os.getenv('SMTP_HOST')
+    smtp_port = os.getenv('SMTP_PORT')
+    smtp_user = os.getenv('SMTP_USER')
+    smtp_pass_present = bool(os.getenv('SMTP_PASS'))
+
+    st.write('SMTP host present:', bool(smtp_host))
+    st.write('SMTP port present:', bool(smtp_port))
+    st.write('SMTP user present:', bool(smtp_user))
+    st.write('SMTP password present:', smtp_pass_present)
+
+    if st.button('Check SMTP connectivity'):
+        if not smtp_host or not smtp_port:
+            st.error('Missing SMTP_HOST or SMTP_PORT')
+        else:
+            import socket
+            try:
+                port = int(smtp_port)
+            except Exception:
+                st.error(f'Invalid SMTP_PORT: {smtp_port}')
+            else:
+                st.info(f'Attempting TCP connect to {smtp_host}:{port} (5s timeout)')
+                try:
+                    with socket.create_connection((smtp_host, port), timeout=5):
+                        st.success('TCP connection to SMTP server succeeded')
+                except Exception as e:
+                    st.error(f'TCP connection failed: {e}')
+
 # Top-left small Back button that returns to the Admin Dashboard
 back_col1, back_col2 = st.columns([1, 8])
 with back_col1:

@@ -42,6 +42,19 @@ Create a `.env` in the project root or set environment variables in your deploym
 - `SUPABASE_KEY`
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` (if using SMTP email)
 
+## Password reset URL (Supabase integration)
+This app includes a dedicated password reset page at `/password_reset` which handles Supabase recovery links of the form:
+
+	?type=recovery&access_token=<token>
+
+To enable in-app password resets, set the Supabase Auth "Site URL" / "Redirect URL" to your app's base URL plus `/password_reset`. Example:
+
+	https://your-app.example.com/password_reset
+
+Then, configure SMTP in the Supabase Dashboard (Authentication → Settings → SMTP) so Supabase can send recovery emails. Use an application-specific SMTP password (e.g. Gmail App Password) and test with the "Send test email" control.
+
+After updating, try the "Forgot password" flow in the app — recovery links will open the `password_reset` page and allow users to set a new password.
+
 ## Notes
 - The app entry is `turning_point_app/streamlit_app.py` (Streamlit Cloud expects a main file path).
 - Language fields for tutors exist in the DB migration script but language UI is disabled in the app; you can enable later if needed.
