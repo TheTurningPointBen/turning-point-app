@@ -8,13 +8,49 @@ st.set_page_config(page_title="The Turning Point", layout="wide", initial_sideba
 
 # Ensure session state defaults exist for all pages
 init_session()
+# If the root URL includes a Supabase recovery token (?type=recovery&access_token=...)
+# dispatch directly to the password_reset page so links that land on the homepage
+# will still surface the password reset UI.
+try:
+    qp = {}
+    try:
+        qp = st.query_params or {}
+    except Exception:
+        try:
+            qp = st.query_params or {}
+        except Exception:
+            qp = {}
+    qp_type = (qp.get('type') or [None])[0]
+    qp_token = (qp.get('access_token') or [None])[0]
+    if qp_type == 'recovery' and qp_token:
+        try:
+            # Immediately dispatch the password_reset page server-side so the
+            # recovery link opens the correct UI even when client-side query
+            # propagation is delayed.
+            import runpy, os
+            base_dir = os.path.dirname(__file__)
+            candidate = os.path.join(base_dir, 'pages', 'password_reset.py')
+            if os.path.isfile(candidate):
+                runpy.run_path(candidate, run_name='__main__')
+                st.stop()
+        except Exception:
+            # Fallback: set the page so the dispatcher may pick it up later
+            try:
+                st.session_state['page'] = 'password_reset'
+                st.experimental_rerun()
+            except Exception:
+                pass
+except Exception:
+    pass
 # Ensure a default `page` query param exists for unauthenticated users so
 # Streamlit's multipage auto-loading doesn't pick a sidebar page on refresh.
 if not st.session_state.get("authenticated"):
     # Ensure unauthenticated sessions land on the homepage. Set a session
     # key so our dispatcher will render `pages/homepage.py` on refresh.
     try:
-        if st.session_state.get('page') != 'homepage':
+        # Only set a default homepage when no `page` has already been chosen
+        # (this allows explicit pages like `password_reset` to take precedence).
+        if not st.session_state.get('page'):
             st.session_state['page'] = 'homepage'
             try:
                 st.experimental_rerun()
@@ -42,6 +78,56 @@ if not st.session_state.get("authenticated"):
         )
 
 hide_sidebar()
+
+# Client-side redirect: if the browser landed on the root URL with a Supabase
+# recovery token (either in the query string or fragment/hash), navigate the
+# browser directly to `/password_reset` so the recovery link opens the correct
+# UI even if server-side dispatch doesn't observe the query params immediately.
+try:
+    st.markdown(
+        """
+        <script>
+        (function(){
+            try{
+                function scheduleRedirect(dest){
+                    if(window.location.pathname !== '/password_reset'){
+                        var tryRedirect = function(){ try{ window.location.replace(dest); }catch(e){} };
+                        var iv = setInterval(tryRedirect, 150);
+                        setTimeout(function(){ clearInterval(iv); }, 3000);
+                    }
+                }
+
+                // Check query string first
+                const params = new URLSearchParams(window.location.search || '');
+                const t = params.get('type');
+                const token = params.get('access_token');
+                if(t === 'recovery' && token){
+                    const dest = '/password_reset?type=recovery&access_token=' + encodeURIComponent(token);
+                    scheduleRedirect(dest);
+                    return;
+                }
+
+                // If no query params, also inspect the fragment/hash (e.g. #access_token=...)
+                if(window.location.hash){
+                    const frag = window.location.hash.replace(/^#/, '');
+                    const fparams = new URLSearchParams(frag);
+                    const ft = fparams.get('type');
+                    const ftoken = fparams.get('access_token');
+                    if(ft === 'recovery' && ftoken){
+                        const dest = '/password_reset?type=recovery&access_token=' + encodeURIComponent(ftoken);
+                        // Try replacing URL repeatedly then navigate
+                        scheduleRedirect(dest);
+                        return;
+                    }
+                }
+            }catch(e){}
+        })();
+        </script>
+        """,
+        unsafe_allow_html=True,
+    )
+except Exception:
+    pass
 
 # Ensure older code calling `st.experimental_rerun()` keeps working by
 # providing a compatibility shim that points to our safe helper when

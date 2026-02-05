@@ -31,6 +31,10 @@ st.markdown(
 )
 from utils.session import get_supabase, restore_session_from_refresh
 import json
+try:
+    from config import SUPABASE_URL
+except Exception:
+    SUPABASE_URL = None
 
 supabase = get_supabase()
 
@@ -66,39 +70,13 @@ except Exception:
     qp_token = None
 
 if qp_type == 'recovery' and qp_token:
-    st.title('Reset your password')
-    st.info('Enter a new password for your account.')
-    new_pw = st.text_input('New password', type='password')
-    confirm_pw = st.text_input('Confirm password', type='password')
-    if st.button('Set new password'):
-        if not new_pw or new_pw != confirm_pw:
-            st.error('Passwords must match and not be empty.')
-        else:
-            try:
-                from config import SUPABASE_URL, SUPABASE_KEY
-                import httpx as _httpx
-
-                url = f"{SUPABASE_URL.rstrip('/')}/auth/v1/user"
-                headers = {
-                    'apikey': SUPABASE_KEY,
-                    'Authorization': f'Bearer {qp_token}',
-                    'Content-Type': 'application/json'
-                }
-                resp = _httpx.put(url, json={'password': new_pw}, headers=headers, timeout=10.0)
-                if resp.status_code in (200, 204):
-                    st.success('Password updated. Please log in with your new password.')
-                    try:
-                        # Remove query params from URL to avoid accidental reuse
-                        st.experimental_set_query_params()
-                    except Exception:
-                        pass
-                else:
-                    try:
-                        st.error(f"Failed to update password: {resp.status_code} {resp.text}")
-                    except Exception:
-                        st.error('Failed to update password. See logs for details.')
-            except Exception as e:
-                st.error(f'Error while updating password: {e}')
+    # Redirect recovery links to the dedicated password_reset page
+    try:
+        # Build redirect URL preserving the token
+        redirect_url = f"/password_reset?type=recovery&access_token={qp_token}"
+        st.markdown(f"<script>window.location.href='{redirect_url}';</script>", unsafe_allow_html=True)
+    except Exception:
+        st.error('Unable to redirect to password reset page. Please open the password reset link from your email.')
     st.stop()
 
 st.title("Tutor Portal")
@@ -242,7 +220,13 @@ with tab1:
                     try:
                         # preferred modern client method if present
                         if hasattr(supabase.auth, 'reset_password_for_email'):
-                            res = supabase.auth.reset_password_for_email(fp_email)
+                            # Prefer sending a redirect_to so the recovery link lands on
+                            # our `/password_reset` page (avoids fragment-only tokens).
+                            try:
+                                res = supabase.auth.reset_password_for_email(fp_email, redirect_to=f"{SUPABASE_URL.rstrip('/')}/password_reset")
+                            except TypeError:
+                                # older client may not accept redirect_to
+                                res = supabase.auth.reset_password_for_email(fp_email)
                         # older clients exposed an `api` namespace
                         elif getattr(supabase.auth, 'api', None) and hasattr(supabase.auth.api, 'reset_password_for_email'):
                             res = supabase.auth.api.reset_password_for_email(fp_email)
@@ -256,7 +240,7 @@ with tab1:
                                     'apikey': SUPABASE_KEY,
                                     'Content-Type': 'application/json'
                                 }
-                                resp = _httpx.post(url, json={"email": fp_email}, headers=headers, timeout=10.0)
+                                resp = _httpx.post(url, json={"email": fp_email, "redirect_to": f"{SUPABASE_URL.rstrip('/')}/password_reset"}, headers=headers, timeout=10.0)
                                 if resp.status_code in (200, 204):
                                     res = {'ok': True}
                                 else:
@@ -268,25 +252,46 @@ with tab1:
                         err = e1
                         res = None
 
-                    if res is None:
-                        # Provide the admin/user with helpful guidance and any error details
+                    # Determine outcome more robustly:
+                    # - If an exception occurred (err) and no response, show warning + debugging.
+                    # - If no exception and response is None, some clients return None on success -> treat as success.
+                    # - If response contains an `error` field or non-2xx status_code, show warning and details.
+                    if err and res is None:
                         st.warning("Password reset request could not be sent. Check Supabase SMTP settings or server logs.")
-                        if err:
-                            try:
-                                st.exception(err)
-                            except Exception:
-                                st.write(str(err))
-                    else:
-                        # If the client returned a response object, show success message.
-                        st.success("If that email exists in our system, password reset instructions have been sent.")
                         try:
-                            # show debug info in case the response contains details (safe for admin debugging)
-                            if getattr(res, 'error', None):
-                                st.write(res.error)
-                            elif isinstance(res, dict) and res.get('error'):
-                                st.write(res.get('error'))
+                            st.exception(err)
                         except Exception:
-                            pass
+                            st.write(str(err))
+                    else:
+                        # Inspect the response object/dict for an error indication
+                        has_error = False
+                        try:
+                            if res is None:
+                                # No exception and no response -> assume success
+                                has_error = False
+                            elif getattr(res, 'error', None):
+                                has_error = True
+                            elif isinstance(res, dict) and res.get('error'):
+                                has_error = True
+                            elif getattr(res, 'status_code', None) and res.status_code not in (200, 204):
+                                has_error = True
+                        except Exception:
+                            # If inspection fails, err on the side of success when no exception was thrown
+                            has_error = False
+
+                        if has_error:
+                            st.warning("Password reset request could not be sent. Check Supabase SMTP settings or server logs.")
+                            try:
+                                if getattr(res, 'error', None):
+                                    st.write(res.error)
+                                elif isinstance(res, dict) and res.get('error'):
+                                    st.write(res.get('error'))
+                                else:
+                                    st.write(getattr(res, 'text', str(res)))
+                            except Exception:
+                                pass
+                        else:
+                            st.success("If that email exists in our system, password reset instructions have been sent.")
                 except Exception as e:
                     st.error("Failed to request password reset. Please try again later.")
                     try:

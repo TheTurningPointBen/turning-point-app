@@ -29,16 +29,27 @@ def send_admin_email(subject: str, body: str, admin_email: str | None = None) ->
     msg.set_content(body)
 
     try:
-        with smtplib.SMTP(host, port, timeout=10) as smtp:
+        # Try plain SMTP with STARTTLS first (common on port 587)
+        with smtplib.SMTP(host, port, timeout=30) as smtp:
             try:
                 smtp.starttls()
             except Exception:
+                # Server may not support STARTTLS; continue
                 pass
             smtp.login(user, password)
             smtp.send_message(msg)
         return {"ok": True}
     except Exception as e:
-        return {"error": str(e)}
+        # Fallback: try implicit TLS (SMTPS) on port 465 if different
+        try:
+            if port != 465:
+                with smtplib.SMTP_SSL(host, 465, timeout=30) as smtp:
+                    smtp.login(user, password)
+                    smtp.send_message(msg)
+                return {"ok": True}
+        except Exception:
+            pass
+        return {"error": repr(e)}
 
 
 def send_email(to_email: str, subject: str, body: str) -> dict:
@@ -67,7 +78,7 @@ def send_email(to_email: str, subject: str, body: str) -> dict:
     msg.set_content(body)
 
     try:
-        with smtplib.SMTP(host, port, timeout=10) as smtp:
+        with smtplib.SMTP(host, port, timeout=30) as smtp:
             try:
                 smtp.starttls()
             except Exception:
@@ -76,4 +87,12 @@ def send_email(to_email: str, subject: str, body: str) -> dict:
             smtp.send_message(msg)
         return {"ok": True}
     except Exception as e:
-        return {"error": str(e)}
+        try:
+            if port != 465:
+                with smtplib.SMTP_SSL(host, 465, timeout=30) as smtp:
+                    smtp.login(user, password)
+                    smtp.send_message(msg)
+                return {"ok": True}
+        except Exception:
+            pass
+        return {"error": repr(e)}
