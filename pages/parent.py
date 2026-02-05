@@ -44,83 +44,8 @@ if params.get('tp_rt'):
     except Exception:
         restored = None
 
-    if restored and restored.get('user'):
-        st.session_state['authenticated'] = True
-        st.session_state['user'] = restored.get('user')
-        st.session_state['role'] = 'parent'
-        st.session_state['email'] = restored.get('user', {}).get('email')
-        try:
-            st.experimental_set_query_params()
-        except Exception:
-            pass
-        try:
-            st.experimental_rerun()
-        except Exception:
-            try:
-                st.markdown("<script>window.location.reload()</script>", unsafe_allow_html=True)
-            except Exception:
-                pass
-import time
-
-st.title("Parent Portal")
-
-tab1, tab2 = st.tabs(["Login", "Register"])
-
-with tab1:
-    st.subheader("Parent Login")
-    # Prefill email from localStorage if present (client-side)
-    st.markdown(
-        """
-        <script>
-        (function(){
-            try{
-                const v = localStorage.getItem('tp_email_parent');
-                if(v){
-                    const labels = Array.from(document.querySelectorAll('label'));
-                    for(const l of labels){
-                        if(l.innerText && l.innerText.trim()==='Email'){
-                            const input = l.parentElement.querySelector('input') || l.nextElementSibling || l.parentElement.nextElementSibling.querySelector('input');
-                            if(input){ input.value = v; input.dispatchEvent(new Event('input',{bubbles:true})); break; }
-                        }
-                    }
-                }
-            }catch(e){}
-        })();
-        </script>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    email = st.text_input("Email", key="parent_login_email")
-    remember = st.checkbox("Remember me", key="remember_parent")
-    password = st.text_input("Password", type="password", key="parent_login_pw")
-
-    if st.button("Login"):
-        if not email or not password:
-            st.error("Please provide both email and password.")
-        else:
-            # Retry logic for network issues
-            max_retries = 3
-            retry_delay = 2
-            
-            for attempt in range(max_retries):
-                try:
-                    with st.spinner(f"Logging in... {f'(Attempt {attempt + 1}/{max_retries})' if attempt > 0 else ''}"):
-                        # Save email to localStorage if user opted in
-                        if remember:
-                            import json
-                            st.markdown(f"<script>localStorage.setItem('tp_email_parent', {json.dumps(email)});</script>", unsafe_allow_html=True)
-                        res = supabase.auth.sign_in_with_password({"email": email, "password": password})
-
-                    if getattr(res, 'user', None):
-                        st.session_state["authenticated"] = True
-                        st.session_state["user"] = res.user
-                        st.session_state["role"] = "parent"
-                        st.session_state["email"] = getattr(res.user, 'email', None)
-                        # Ensure we persist the parent's email / associate user_id in the parents table
-                        try:
-                            try:
-                                user_obj = res.user
+    # Forgot password disabled; direct users to support email
+    st.info("To change your password please email notifications@theturningpoint.co.za for assistance.")
                                 user_id = getattr(user_obj, 'id', None)
                                 user_email = getattr(user_obj, 'email', None)
                             except Exception:
