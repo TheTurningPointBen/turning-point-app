@@ -11,6 +11,37 @@ except Exception:
 
 st.title("Parent Portal")
 
+# Inject JS to auto-restore session from refresh token stored in localStorage
+# and to prefill the email input if the user opted to remember it.
+st.markdown(
+    """
+    <script>
+    (function(){
+        try{
+            const rt = localStorage.getItem('tp_refresh');
+            if(rt && !window.location.search.includes('tp_rt=')){
+                const url = new URL(window.location.href);
+                url.searchParams.set('tp_rt', rt);
+                window.location.replace(url.toString());
+            }
+            // Prefill remembered parent email
+            const v = localStorage.getItem('tp_email_parent');
+            if(v){
+                const labels = Array.from(document.querySelectorAll('label'));
+                for(const l of labels){
+                    if(l.innerText && l.innerText.trim()==='Email'){
+                        const input = l.parentElement.querySelector('input') || l.nextElementSibling || l.parentElement.nextElementSibling.querySelector('input');
+                        if(input){ input.value = v; input.dispatchEvent(new Event('input',{bubbles:true})); break; }
+                    }
+                }
+            }
+        }catch(e){}
+    })();
+    </script>
+    """,
+    unsafe_allow_html=True,
+)
+
 tab1, tab2 = st.tabs(["Login", "Register"])
 
 with tab1:
@@ -50,6 +81,24 @@ with tab1:
     if st.button("Login"):
         try:
             res = supabase.auth.sign_in_with_password({"email": email, "password": password})
+
+            # Persist refresh token to localStorage when requested (so we can
+            # restore sessions across page reloads). We try to extract the
+            # refresh token from the response in several possible shapes.
+            try:
+                session = getattr(res, 'session', None) or (res.get('session') if isinstance(res, dict) else None)
+                refresh = None
+                if session:
+                    refresh = getattr(session, 'refresh_token', None) or (session.get('refresh_token') if isinstance(session, dict) else None)
+                if not refresh:
+                    refresh = getattr(res, 'refresh_token', None) or (res.get('refresh_token') if isinstance(res, dict) else None)
+                if remember and refresh:
+                    import json as _json
+                    st.markdown(f"<script>localStorage.setItem('tp_refresh', {_json.dumps(refresh)});</script>", unsafe_allow_html=True)
+                    # also remember the email separately for prefill
+                    st.markdown(f"<script>localStorage.setItem('tp_email_parent', {_json.dumps(email)});</script>", unsafe_allow_html=True)
+            except Exception:
+                pass
 
             if not getattr(res, 'user', None):
                 st.error("Login failed. Check credentials or confirm your email.")

@@ -217,6 +217,7 @@ for booking in bookings_res.data:
         s = subject_text.strip().lower()
         mapping = {
             'afrikaans': 'afrikaans',
+            'afr': 'afrikaans',
             'isizulu': 'isizulu',
             'zulu': 'isizulu',
             'setswana': 'setswana',
@@ -265,8 +266,13 @@ for booking in bookings_res.data:
         # role match
         if not role_matches(tutor.get('roles'), booking.get('role_required')):
             continue
-        # language match
-        if lang_col and not tutor.get(lang_col):
+        # language match: only enforce if the tutor has any explicit
+        # language flags. Tutors with no language ticks are assumed able
+        # to cover any language subject.
+        def _tutor_has_any_lang_flags(t_row):
+            return any(bool(t_row.get(k)) for k in ('afrikaans', 'isizulu', 'setswana', 'isixhosa', 'french'))
+
+        if lang_col and _tutor_has_any_lang_flags(tutor) and not tutor.get(lang_col):
             continue
         # availability check (only if we have valid parsed start_time and exam_date)
         if start_time and exam_date_obj:

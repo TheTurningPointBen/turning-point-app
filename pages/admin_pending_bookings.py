@@ -134,6 +134,7 @@ for booking in bookings:
             s = subject_text.strip().lower()
             mapping = {
                 'afrikaans': 'afrikaans',
+                'afr': 'afrikaans',
                 'isizulu': 'isizulu',
                 'zulu': 'isizulu',
                 'setswana': 'setswana',
@@ -183,10 +184,16 @@ for booking in bookings:
 
         lang_col = _language_column_for(booking.get('subject'))
 
+        def _tutor_has_any_lang_flags(tutor_row):
+            return any(bool(tutor_row.get(k)) for k in ('afrikaans', 'isizulu', 'setswana', 'isixhosa', 'french'))
+
         for t in (tutors_res.data or []):
             if not role_matches(t.get('roles'), booking.get('role_required')):
                 continue
-            if lang_col and not t.get(lang_col):
+            # If the booking maps to a language column, only filter out tutors
+            # who have explicit language flags and do not include this language.
+            # Tutors with no language flags set are treated as able to cover any subject.
+            if lang_col and _tutor_has_any_lang_flags(t) and not t.get(lang_col):
                 continue
             if start_time and exam_date_obj:
                 if not _tutor_is_available(t.get('id'), exam_date_obj, start_time, booking.get('duration') or 60):

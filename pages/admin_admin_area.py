@@ -544,6 +544,7 @@ with st.expander("Create Manual Booking (Admin)"):
             s = subject_text.strip().lower()
             mapping = {
                 'afrikaans': 'afrikaans',
+                'afr': 'afrikaans',
                 'isizulu': 'isizulu',
                 'zulu': 'isizulu',
                 'setswana': 'setswana',
@@ -619,7 +620,13 @@ with st.expander("Create Manual Booking (Admin)"):
         for t in tutors:
             if not role_matches(t.get('roles'), role_required):
                 continue
-            if lang_col and not t.get(lang_col):
+            # Tutors who have no explicit language ticks are assumed able to cover
+            # language subjects; only enforce the language requirement if the
+            # tutor has any language flags set and doesn't include the required one.
+            def _tutor_has_any_lang_flags(tutor_row):
+                return any(bool(tutor_row.get(k)) for k in ('afrikaans', 'isizulu', 'setswana', 'isixhosa', 'french'))
+
+            if lang_col and _tutor_has_any_lang_flags(t) and not t.get(lang_col):
                 continue
             if exam_date_obj and start_time:
                 if not _tutor_is_available(t.get('id'), exam_date_obj, start_time, duration):

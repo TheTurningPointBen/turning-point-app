@@ -157,7 +157,8 @@ def _language_column_for(subject_text: str):
         return None
     s = subject_text.strip().lower()
     mapping = {
-        'afrikaans': 'afrikaans',
+                'afrikaans': 'afrikaans',
+                'afr': 'afrikaans',
         'isizulu': 'isizulu',
         'zulu': 'isizulu',
         'setswana': 'setswana',
@@ -240,7 +241,9 @@ try:
             continue
         # language match (if applicable)
         if lang_col:
-            if not t.get(lang_col):
+            def _tutor_has_any_lang_flags(tutor_row):
+                return any(bool(tutor_row.get(k)) for k in ('afrikaans', 'isizulu', 'setswana', 'isixhosa', 'french'))
+            if _tutor_has_any_lang_flags(t) and not t.get(lang_col):
                 continue
         # availability check
         if not _tutor_is_available(t.get('id'), exam_date, start_time, duration):
