@@ -103,28 +103,28 @@ def send_admin_email(subject: str, body: str, admin_email: str | None = None) ->
         return {"error": repr(e)}
 
 
-    def send_mailgun_email(to_email: str, subject: str, body: str) -> dict:
-        """Send email via Mailgun HTTP API using MAILGUN_API_KEY and MAILGUN_DOMAIN.
+def send_mailgun_email(to_email: str, subject: str, body: str) -> dict:
+    """Send email via Mailgun HTTP API using MAILGUN_API_KEY and MAILGUN_DOMAIN.
 
-        Returns {'ok': True} or {'error': 'message'}
-        """
-        mg_key = os.getenv("MAILGUN_API_KEY")
-        mg_domain = os.getenv("MAILGUN_DOMAIN")
-        if not (mg_key and mg_domain and to_email):
-            return {"error": "Missing Mailgun configuration or recipient"}
+    Returns {'ok': True} or {'error': 'message'}
+    """
+    mg_key = os.getenv("MAILGUN_API_KEY")
+    mg_domain = os.getenv("MAILGUN_DOMAIN")
+    if not (mg_key and mg_domain and to_email):
+        return {"error": "Missing Mailgun configuration or recipient"}
 
-        from_email = os.getenv("SENDER_EMAIL") or os.getenv("SMTP_USER")
-        sender_name = os.getenv("SENDER_NAME")
-        mg_from = f"{sender_name} <{from_email}>" if sender_name else from_email
-        mg_url = f"https://api.mailgun.net/v3/{mg_domain}/messages"
-        data = {"from": mg_from, "to": to_email, "subject": subject, "text": body}
-        try:
-            r = requests.post(mg_url, auth=("api", mg_key), data=data, timeout=10)
-            if r.status_code in (200, 202):
-                return {"ok": True}
-            return {"error": f"Mailgun error: {r.status_code} {r.text}"}
-        except Exception as e:
-            return {"error": repr(e)}
+    from_email = os.getenv("SENDER_EMAIL") or os.getenv("SMTP_USER")
+    sender_name = os.getenv("SENDER_NAME")
+    mg_from = f"{sender_name} <{from_email}>" if sender_name else from_email
+    mg_url = f"https://api.mailgun.net/v3/{mg_domain}/messages"
+    data = {"from": mg_from, "to": to_email, "subject": subject, "text": body}
+    try:
+        r = requests.post(mg_url, auth=("api", mg_key), data=data, timeout=10)
+        if r.status_code in (200, 202):
+            return {"ok": True}
+        return {"error": f"Mailgun error: {r.status_code} {r.text}"}
+    except Exception as e:
+        return {"error": repr(e)}
 
 
 def send_email(to_email: str, subject: str, body: str) -> dict:
