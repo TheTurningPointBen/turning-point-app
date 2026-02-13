@@ -199,7 +199,7 @@ for booking in bookings:
                 if not _tutor_is_available(t.get('id'), exam_date_obj, start_time, booking.get('duration') or 60):
                     continue
             suitable.append(t)
-        suitable = suitable[:5]
+        # Show all suitable tutors (no arbitrary limit)
     except Exception:
         suitable = []
 

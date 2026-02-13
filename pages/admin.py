@@ -280,8 +280,7 @@ for booking in bookings_res.data:
                 continue
         suitable_tutors.append(tutor)
 
-    # Limit to top 5
-    suitable_tutors = suitable_tutors[:5]
+    # Show all suitable tutors (no arbitrary limit)
 
     if not suitable_tutors:
         st.warning("No suitable tutors available")
