@@ -50,52 +50,8 @@ with tab1:
     if st.button("Login"):
         try:
             res = supabase.auth.sign_in_with_password({"email": email, "password": password})
-            if getattr(res, 'user', None):
-                st.session_state['authenticated'] = True
-                st.session_state['user'] = res.user
-                st.session_state['role'] = 'parent'
-                st.session_state['email'] = getattr(res.user, 'email', None)
-                st.success("Logged in successfully.")
-                try:
-                    # Ensure parents table links to this auth user
-                    user_obj = res.user
-                    user_id = getattr(user_obj, 'id', None)
-                    user_email = getattr(user_obj, 'email', None)
-                except Exception:
-                    user_id = None
-                    user_email = email
 
-                try:
-                    if user_id or user_email:
-                        if user_id:
-                            p_res = supabase.table('parents').select('*').eq('user_id', user_id).execute()
-                            if getattr(p_res, 'data', None) and len(p_res.data) > 0:
-                                existing = p_res.data[0]
-                                if user_email and existing.get('email') != user_email:
-                                    supabase.table('parents').update({'email': user_email}).eq('id', existing.get('id')).execute()
-                            else:
-                                if user_email:
-                                    by_email = supabase.table('parents').select('*').eq('email', user_email).execute()
-                                    if getattr(by_email, 'data', None) and len(by_email.data) > 0:
-                                        supabase.table('parents').update({'user_id': user_id}).eq('id', by_email.data[0].get('id')).execute()
-                                    else:
-                                        supabase.table('parents').insert({'user_id': user_id, 'email': user_email}).execute()
-                        else:
-                            if user_email:
-                                by_email = supabase.table('parents').select('*').eq('email', user_email).execute()
-                                if not (getattr(by_email, 'data', None) and len(by_email.data) > 0):
-                                    supabase.table('parents').insert({'email': user_email}).execute()
-                except Exception:
-                    pass
-
-                try:
-                    st.switch_page("pages/parent_dashboard.py")
-                except Exception:
-                    try:
-                        st.experimental_rerun()
-                    except Exception:
-                        pass
-            else:
+            if not getattr(res, 'user', None):
                 st.error("Login failed. Check credentials or confirm your email.")
                 with st.expander("Server response (debug)"):
                     try:
@@ -108,6 +64,52 @@ with tab1:
                             st.write(res.__dict__)
                         except Exception:
                             st.write(str(res))
+                try:
+                    st.stop()
+                except Exception:
+                    pass
+
+            # Successful login: set session and ensure parents table links to auth user
+            user_obj = res.user
+            user_id = getattr(user_obj, 'id', None)
+            user_email = getattr(user_obj, 'email', None) or email
+
+            st.session_state['authenticated'] = True
+            st.session_state['user'] = user_obj
+            st.session_state['role'] = 'parent'
+            st.session_state['email'] = user_email
+            st.success("Logged in successfully.")
+
+            try:
+                if user_id or user_email:
+                    if user_id:
+                        p_res = supabase.table('parents').select('*').eq('user_id', user_id).execute()
+                        if getattr(p_res, 'data', None) and len(p_res.data) > 0:
+                            existing = p_res.data[0]
+                            if user_email and existing.get('email') != user_email:
+                                supabase.table('parents').update({'email': user_email}).eq('id', existing.get('id')).execute()
+                        else:
+                            if user_email:
+                                by_email = supabase.table('parents').select('*').eq('email', user_email).execute()
+                                if getattr(by_email, 'data', None) and len(by_email.data) > 0:
+                                    supabase.table('parents').update({'user_id': user_id}).eq('id', by_email.data[0].get('id')).execute()
+                                else:
+                                    supabase.table('parents').insert({'user_id': user_id, 'email': user_email}).execute()
+                    else:
+                        if user_email:
+                            by_email = supabase.table('parents').select('*').eq('email', user_email).execute()
+                            if not (getattr(by_email, 'data', None) and len(by_email.data) > 0):
+                                supabase.table('parents').insert({'email': user_email}).execute()
+            except Exception:
+                pass
+
+            try:
+                st.switch_page("pages/parent_dashboard.py")
+            except Exception:
+                try:
+                    st.experimental_rerun()
+                except Exception:
+                    pass
         except Exception as e:
             st.error("Login exception. Please try again later.")
             try:
