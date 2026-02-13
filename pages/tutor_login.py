@@ -1,5 +1,172 @@
 import streamlit as st
 from utils.ui import hide_sidebar
+from utils.database import supabase
+from utils.session import restore_session_from_refresh
+import json
+
+hide_sidebar()
+try:
+    st.set_page_config(page_title="Tutor Login")
+except Exception:
+    pass
+
+st.title("Tutor Portal")
+
+tab1, tab2 = st.tabs(["Login", "Register"])
+
+with tab1:
+    st.subheader("Tutor Login")
+
+    params = {}
+    try:
+        params = st.query_params or {}
+    except Exception:
+        params = {}
+
+    if params.get('tp_rt'):
+        token = params.get('tp_rt')[0]
+        try:
+            restored = restore_session_from_refresh(token)
+            if restored and restored.get('user'):
+                st.session_state['authenticated'] = True
+                st.session_state['user'] = restored.get('user')
+                st.session_state['role'] = 'tutor'
+                st.session_state['email'] = restored.get('user', {}).get('email')
+                try:
+                    st.experimental_set_query_params()
+                except Exception:
+                    pass
+                try:
+                    st.experimental_rerun()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    email = st.text_input("Email", key="login_email")
+    remember = st.checkbox("Remember me", key="remember_tutor")
+    password = st.text_input("Password", type="password", key="login_pw")
+
+    if st.button("Login"):
+        try:
+            if remember:
+                st.markdown(f"<script>localStorage.setItem('tp_email_tutor', {json.dumps(email)});</script>", unsafe_allow_html=True)
+            res = supabase.auth.sign_in_with_password({"email": email, "password": password})
+            if getattr(res, 'user', None):
+                st.session_state['authenticated'] = True
+                st.session_state['user'] = res.user
+                st.session_state['role'] = 'tutor'
+                st.session_state['email'] = getattr(res.user, 'email', None)
+                st.success("Logged in successfully.")
+                try:
+                    user_obj = res.user
+                    user_id = getattr(user_obj, 'id', None)
+                    user_email = getattr(user_obj, 'email', None)
+                except Exception:
+                    user_id = None
+                    user_email = email
+
+                try:
+                    if user_id or user_email:
+                        if user_id:
+                            t_res = supabase.table('tutors').select('*').eq('user_id', user_id).execute()
+                            if getattr(t_res, 'data', None) and len(t_res.data) > 0:
+                                existing = t_res.data[0]
+                                if user_email and existing.get('email') != user_email:
+                                    supabase.table('tutors').update({'email': user_email}).eq('id', existing.get('id')).execute()
+                            else:
+                                if user_email:
+                                    by_email = supabase.table('tutors').select('*').eq('email', user_email).execute()
+                                    if getattr(by_email, 'data', None) and len(by_email.data) > 0:
+                                        supabase.table('tutors').update({'user_id': user_id}).eq('id', by_email.data[0].get('id')).execute()
+                                    else:
+                                        supabase.table('tutors').insert({'user_id': user_id, 'email': user_email}).execute()
+                        else:
+                            if user_email:
+                                by_email = supabase.table('tutors').select('*').eq('email', user_email).execute()
+                                if not (getattr(by_email, 'data', None) and len(by_email.data) > 0):
+                                    supabase.table('tutors').insert({'email': user_email}).execute()
+                except Exception:
+                    pass
+
+                try:
+                    st.switch_page("pages/tutor.py")
+                except Exception:
+                    try:
+                        st.experimental_rerun()
+                    except Exception:
+                        pass
+            else:
+                st.error("Login failed. Check credentials or confirm your email.")
+        except Exception as e:
+            st.error("Login exception. Please try again later.")
+            try:
+                st.exception(e)
+            except Exception:
+                pass
+
+    if st.button("Change Password"):
+        try:
+            st.markdown("<script>window.location.href='/password_reset';</script>", unsafe_allow_html=True)
+        except Exception:
+            st.info("Open the password reset page: /password_reset")
+
+    st.info("To change your password please email notifications@theturningpoint.co.za for assistance.")
+
+with tab2:
+    st.subheader("Tutor Registration")
+    reg_email = st.text_input("Email", key="reg_email")
+    reg_password = st.text_input("Password", type="password", key="reg_pw")
+    confirm_pw = st.text_input("Confirm Password", type="password", key="reg_confirm_pw")
+
+    if st.button("Register"):
+        if reg_password != confirm_pw:
+            st.error("Passwords do not match.")
+        else:
+            try:
+                res = supabase.auth.sign_up({"email": reg_email, "password": reg_password})
+                if getattr(res, 'user', None):
+                    st.success("Thank you please log in to account.")
+                    try:
+                        user_obj = res.user
+                        user_id = getattr(user_obj, 'id', None)
+                        user_email = getattr(user_obj, 'email', None)
+                    except Exception:
+                        user_id = None
+                        user_email = reg_email
+
+                    try:
+                        if user_id:
+                            existing = supabase.table('tutors').select('*').eq('user_id', user_id).execute()
+                            if getattr(existing, 'data', None) and len(existing.data) > 0:
+                                existing = existing.data[0]
+                                if user_email and existing.get('email') != user_email:
+                                    supabase.table('tutors').update({'email': user_email}).eq('id', existing.get('id')).execute()
+                            else:
+                                if user_email:
+                                    by_email = supabase.table('tutors').select('*').eq('email', user_email).execute()
+                                    if getattr(by_email, 'data', None) and len(by_email.data) > 0:
+                                        supabase.table('tutors').update({'user_id': user_id}).eq('id', by_email.data[0].get('id')).execute()
+                                    else:
+                                        supabase.table('tutors').insert({'user_id': user_id, 'email': user_email}).execute()
+                        else:
+                            if user_email:
+                                by_email = supabase.table('tutors').select('*').eq('email', user_email).execute()
+                                if not (getattr(by_email, 'data', None) and len(by_email.data) > 0):
+                                    supabase.table('tutors').insert({'email': user_email}).execute()
+                    except Exception:
+                        pass
+                else:
+                    st.error("Registration may have failed; see response below.")
+                    st.write(res)
+            except Exception as e:
+                st.error("Registration failed. Email may already exist.")
+                try:
+                    st.exception(e)
+                except Exception:
+                    pass
+import streamlit as st
+from utils.ui import hide_sidebar
 hide_sidebar()
 try:
     st.set_page_config(page_title="Tutor Login")

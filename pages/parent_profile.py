@@ -4,14 +4,21 @@ from utils.ui import hide_sidebar
 hide_sidebar()
 from utils.database import supabase
 
-# Ensure user is logged in
+# Ensure user is logged in or at least we have their email from registration
 user = st.session_state.get("user")
 if not user:
-    st.info("Please log in first via the Parent Portal.")
-    try:
-        st.stop()
-    except Exception:
-        pass
+    # If we don't have a full `user` object but the email was stored after
+    # registration, allow the profile editor to proceed using that email.
+    email_from_session = st.session_state.get('email')
+    if email_from_session:
+        user = {'email': email_from_session}
+        st.session_state['user'] = user
+    else:
+        st.info("Please log in first via the Parent Portal.")
+        try:
+            st.stop()
+        except Exception:
+            pass
 
 # Helper to read attribute or dict key
 def get_user_attr(u, key):
@@ -285,7 +292,37 @@ else:
             try:
                 insert_res = supabase.table("parents").insert(payload).execute()
             except Exception as e:
-                st.error(f"Failed to save profile: {e}")
+                # If the Supabase/PostgREST client raises an exception about missing
+                # columns in the schema cache (e.g. 'email' or 'children'), retry
+                # the insert without those keys so older DB schemas still work.
+                try:
+                    msg = str(e)
+                except Exception:
+                    msg = ''
+
+                if msg and ('Could not find' in msg or 'could not find' in msg):
+                    fallback = payload.copy()
+                    if 'email' in msg:
+                        fallback.pop('email', None)
+                    if 'children' in msg:
+                        fallback.pop('children', None)
+
+                    try:
+                        retry = supabase.table('parents').insert(fallback).execute()
+                    except Exception as e2:
+                        st.error(f"Failed to save profile: {e2}")
+                    else:
+                        if getattr(retry, 'error', None) is None and getattr(retry, 'data', None):
+                            st.success("Profile saved (with fallback; database schema lacks some columns).")
+                            st.warning("Database schema is missing fields; consider migrating to include them for full functionality.")
+                            try:
+                                st.experimental_rerun()
+                            except Exception:
+                                st.markdown("<script>window.location.reload()</script>", unsafe_allow_html=True)
+                        else:
+                            st.error(f"Failed to save profile. Error: {getattr(retry, 'error', None)}")
+                else:
+                    st.error(f"Failed to save profile: {e}")
             else:
                 if getattr(insert_res, 'error', None) is None and getattr(insert_res, 'data', None):
                     st.success("Profile saved successfully! You can now book a reader/scribe.")
@@ -295,20 +332,23 @@ else:
                         st.markdown("<script>window.location.reload()</script>", unsafe_allow_html=True)
                 else:
                     err = getattr(insert_res, 'error', None)
-                    # If DB lacks `email` column, retry without it
+                    # If DB lacks `email` or `children` column, retry without them
                     try:
                         msg = err.get('message') if isinstance(err, dict) else str(err)
                     except Exception:
                         msg = str(err)
 
-                    if msg and 'email' in msg and ('Could not find' in msg or 'could not find' in msg):
+                    if msg and ('Could not find' in msg or 'could not find' in msg):
                         fallback = payload.copy()
-                        fallback.pop('email', None)
+                        if 'email' in msg:
+                            fallback.pop('email', None)
+                        if 'children' in msg:
+                            fallback.pop('children', None)
                         try:
                             retry = supabase.table('parents').insert(fallback).execute()
                             if getattr(retry, 'error', None) is None and getattr(retry, 'data', None):
-                                st.success("Profile saved (without 'email' field; database schema lacks that column).")
-                                st.warning("Database does not have an 'email' column; consider adding it for full functionality.")
+                                st.success("Profile saved (without missing DB columns).")
+                                st.warning("Database schema is missing fields; consider migrating to include them for full functionality.")
                                 try:
                                     st.experimental_rerun()
                                 except Exception:

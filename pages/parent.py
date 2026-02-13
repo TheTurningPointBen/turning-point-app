@@ -1,130 +1,120 @@
 import streamlit as st
 from utils.ui import hide_sidebar
-
-# Apply shared hide-sidebar helper
-hide_sidebar()
-# Hide Streamlit Pages list in the sidebar for a cleaner login
-st.markdown(
-    """
-    <script>
-    (function(){
-        const hide = ()=>{
-            try{
-                const divs = Array.from(document.querySelectorAll('div'));
-                for(const d of divs){
-                    if(d.innerText && (d.innerText.trim().startsWith('Pages') || d.innerText.trim().startsWith('Page'))){
-                        let node = d;
-                        while(node && node.tagName !== 'ASIDE') node = node.parentElement;
-                        if(node) node.remove(); else d.remove();
-                        break;
-                    }
-                }
-            }catch(e){}
-        };
-        setTimeout(hide, 200);
-    })();
-    </script>
-    """,
-    unsafe_allow_html=True,
-)
 from utils.database import supabase
 from utils.session import restore_session_from_refresh
 
-# If a one-time refresh token was pushed into the URL (tp_rt), try restoring session
+hide_sidebar()
 try:
-    params = st.query_params or {}
+    st.set_page_config(page_title="Parent Login")
 except Exception:
+    pass
+
+st.title("Parent Portal")
+
+tab1, tab2 = st.tabs(["Login", "Register"])
+
+with tab1:
+    st.subheader("Parent Login")
+
+    # Attempt to restore session from a one-time token if present
     params = {}
-
-if params.get('tp_rt'):
-    token = params.get('tp_rt')[0]
-    restored = None
     try:
-        restored = restore_session_from_refresh(token)
+        params = st.query_params or {}
     except Exception:
-        restored = None
+        params = {}
 
-    # Forgot password disabled; direct users to support email
-    st.info("To change your password please email notifications@theturningpoint.co.za for assistance.")
-                                user_id = getattr(user_obj, 'id', None)
-                                user_email = getattr(user_obj, 'email', None)
-                            except Exception:
-                                user_id = None
-                                user_email = None
+    if params.get('tp_rt'):
+        token = params.get('tp_rt')[0]
+        try:
+            restored = restore_session_from_refresh(token)
+            if restored and restored.get('user'):
+                st.session_state['authenticated'] = True
+                st.session_state['user'] = restored.get('user')
+                st.session_state['role'] = 'parent'
+                st.session_state['email'] = restored.get('user', {}).get('email')
+                try:
+                    st.experimental_set_query_params()
+                except Exception:
+                    pass
+                try:
+                    st.experimental_rerun()
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
-                            if user_id or user_email:
-                                try:
-                                    # If there is a parents record for this user_id, ensure email is set
-                                    if user_id:
-                                        p_res = supabase.table('parents').select('*').eq('user_id', user_id).execute()
-                                        if getattr(p_res, 'data', None) and len(p_res.data) > 0:
-                                            # update email if missing
-                                            existing = p_res.data[0]
-                                            if user_email and existing.get('email') != user_email:
-                                                supabase.table('parents').update({'email': user_email}).eq('id', existing.get('id')).execute()
-                                        else:
-                                            # Try to find by email and attach user_id
-                                            if user_email:
-                                                by_email = supabase.table('parents').select('*').eq('email', user_email).execute()
-                                                if getattr(by_email, 'data', None) and len(by_email.data) > 0:
-                                                    supabase.table('parents').update({'user_id': user_id}).eq('id', by_email.data[0].get('id')).execute()
-                                                else:
-                                                    # Insert a minimal parent record with email and user_id
-                                                    supabase.table('parents').insert({'user_id': user_id, 'email': user_email}).execute()
-                                except Exception:
-                                    pass
-                        except Exception:
-                            pass
-                        st.success("Logged in successfully.")
-                        try:
-                            st.switch_page("pages/parent_dashboard.py")
-                        except Exception:
-                            try:
-                                st.experimental_rerun()
-                            except Exception:
-                                st.markdown("<script>window.location.reload()</script>", unsafe_allow_html=True)
-                    else:
-                        st.error("Login failed. Check credentials or confirm your email.")
-                        with st.expander("Server response (debug)"):
-                            try:
-                                if isinstance(res, dict):
-                                    st.json(res)
-                                else:
-                                    st.write(res)
-                            except Exception:
-                                try:
-                                    st.write(res.__dict__)
-                                except Exception:
-                                    st.write(str(res))
-                    break  # Success, exit retry loop
+    email = st.text_input("Email", key="parent_login_email")
+    password = st.text_input("Password", type="password", key="parent_login_pw")
+    remember = st.checkbox("Remember me", key="remember_parent")
 
-                except Exception as e:
-                    # If Supabase returns an authentication error (bad credentials),
-                    # surface it as a login failure rather than a transient connection issue.
+    if st.button("Login"):
+        try:
+            res = supabase.auth.sign_in_with_password({"email": email, "password": password})
+            if getattr(res, 'user', None):
+                st.session_state['authenticated'] = True
+                st.session_state['user'] = res.user
+                st.session_state['role'] = 'parent'
+                st.session_state['email'] = getattr(res.user, 'email', None)
+                st.success("Logged in successfully.")
+                try:
+                    # Ensure parents table links to this auth user
+                    user_obj = res.user
+                    user_id = getattr(user_obj, 'id', None)
+                    user_email = getattr(user_obj, 'email', None)
+                except Exception:
+                    user_id = None
+                    user_email = email
+
+                try:
+                    if user_id or user_email:
+                        if user_id:
+                            p_res = supabase.table('parents').select('*').eq('user_id', user_id).execute()
+                            if getattr(p_res, 'data', None) and len(p_res.data) > 0:
+                                existing = p_res.data[0]
+                                if user_email and existing.get('email') != user_email:
+                                    supabase.table('parents').update({'email': user_email}).eq('id', existing.get('id')).execute()
+                            else:
+                                if user_email:
+                                    by_email = supabase.table('parents').select('*').eq('email', user_email).execute()
+                                    if getattr(by_email, 'data', None) and len(by_email.data) > 0:
+                                        supabase.table('parents').update({'user_id': user_id}).eq('id', by_email.data[0].get('id')).execute()
+                                    else:
+                                        supabase.table('parents').insert({'user_id': user_id, 'email': user_email}).execute()
+                        else:
+                            if user_email:
+                                by_email = supabase.table('parents').select('*').eq('email', user_email).execute()
+                                if not (getattr(by_email, 'data', None) and len(by_email.data) > 0):
+                                    supabase.table('parents').insert({'email': user_email}).execute()
+                except Exception:
+                    pass
+
+                try:
+                    st.switch_page("pages/parent_dashboard.py")
+                except Exception:
                     try:
-                        from supabase_auth.errors import AuthApiError
-                        is_auth_error = isinstance(e, AuthApiError)
+                        st.experimental_rerun()
                     except Exception:
-                        is_auth_error = False
+                        pass
+            else:
+                st.error("Login failed. Check credentials or confirm your email.")
+                with st.expander("Server response (debug)"):
+                    try:
+                        if isinstance(res, dict):
+                            st.json(res)
+                        else:
+                            st.write(res)
+                    except Exception:
+                        try:
+                            st.write(res.__dict__)
+                        except Exception:
+                            st.write(str(res))
+        except Exception as e:
+            st.error("Login exception. Please try again later.")
+            try:
+                st.exception(e)
+            except Exception:
+                pass
 
-                    if is_auth_error:
-                        st.error("Login failed. Check credentials or confirm your email.")
-                        with st.expander("Server response (debug)"):
-                            st.exception(e)
-                        break
-
-                    # For other errors (network/timeouts), retry a few times.
-                    if attempt < max_retries - 1:
-                        st.warning(f"Connection issue. Retrying in {retry_delay} seconds...")
-                        time.sleep(retry_delay)
-                    else:
-                        st.error("⚠️ Unable to connect to authentication service. Please check your internet connection and try again.")
-                        with st.expander("Technical Details"):
-                            st.exception(e)
-
-    # -------------------------
-    # FORGOT PASSWORD
-    # -------------------------
     with st.expander("Forgot password?"):
         fp_email = st.text_input("Enter your account email to receive reset instructions", key="parent_forgot_email")
         if st.button("Send reset email", key="parent_forgot_send"):
@@ -132,7 +122,6 @@ if params.get('tp_rt'):
                 st.error("Please enter your email.")
             else:
                 try:
-                    # Try the supabase client reset APIs; be defensive about client versions
                     try:
                         res = supabase.auth.reset_password_for_email(fp_email)
                     except Exception:
@@ -152,6 +141,8 @@ if params.get('tp_rt'):
                     except Exception:
                         pass
 
+# Registration block continues below
+
 with tab2:
     st.subheader("Parent Registration")
     reg_email = st.text_input("Email", key="parent_reg_email")
@@ -164,9 +155,25 @@ with tab2:
         else:
             try:
                 res = supabase.auth.sign_up({"email": reg_email, "password": reg_password})
-                if getattr(res, 'user', None):
-                    st.success("Thank you please log in to account.")
-                    # Ensure a minimal parents record exists with this email/user_id
+                # Regardless of whether Supabase returns a user object (depends
+                # on email confirmation settings), store the registration email
+                # in session so the user can be redirected to complete their
+                # profile immediately.
+                try:
+                    user_obj = res.user if getattr(res, 'user', None) else None
+                    user_email = getattr(user_obj, 'email', None) if user_obj else reg_email
+                except Exception:
+                    user_obj = None
+                    user_email = reg_email
+
+                st.session_state['authenticated'] = True
+                st.session_state['user'] = user_obj or {'email': user_email}
+                st.session_state['role'] = 'parent'
+                st.session_state['email'] = user_email
+                st.success("Registration successful — please complete your profile.")
+
+                # Ensure a minimal parents record exists with this email/user_id
+                try:
                     try:
                         user_obj = res.user
                         user_id = getattr(user_obj, 'id', None)
@@ -200,6 +207,18 @@ with tab2:
                                     supabase.table('parents').insert({'email': user_email}).execute()
                     except Exception:
                         pass
+
+                    # After ensuring a minimal parent record exists, send the
+                    # user to the Parent Profile page so they can fill in details.
+                    try:
+                        st.switch_page("pages/parent_profile.py")
+                    except Exception:
+                        try:
+                            st.experimental_rerun()
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
                 else:
                     st.error("Registration may have failed; see response below.")
                     st.write(res)

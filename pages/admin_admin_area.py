@@ -685,6 +685,56 @@ with st.expander("Create Manual Booking (Admin)"):
                         send_admin_email(sub, body)
                     except Exception:
                         pass
+                    # If booking is immediately Confirmed and a tutor was assigned, notify tutor and parent
+                    try:
+                        if status == 'Confirmed' and selected_tutor_id:
+                            # fetch tutor
+                            t_res = supabase.table('tutors').select('name,surname,email,phone').eq('id', selected_tutor_id).execute()
+                            t = (t_res.data or [None])[0] if getattr(t_res, 'data', None) else None
+
+                            # fetch parent
+                            p_res = supabase.table('parents').select('parent_name,email,phone').eq('id', selected_parent.get('id')).execute()
+                            p = (p_res.data or [None])[0] if getattr(p_res, 'data', None) else None
+
+                            # notify tutor
+                            try:
+                                if t and t.get('email'):
+                                    tutor_name = f"{t.get('name') or ''} {t.get('surname') or ''}".strip()
+                                    tutor_email = t.get('email')
+                                    subject_t = f"New booking assigned: {child_name or 'Child'} — {subject}"
+                                    body_t = (
+                                        f"Hello {tutor_name or 'Tutor'},\n\n"
+                                        f"You have been assigned to a booking:\n"
+                                        f"Child: {child_name}\n"
+                                        f"Subject: {subject}\n"
+                                        f"Date: {exam_date.isoformat()}\n"
+                                        f"Start Time: {start_time.strftime('%H:%M:%S')}\n"
+                                        f"Duration: {duration} minutes\n\n"
+                                        f"Please log in to the admin panel to view details.\n"
+                                    )
+                                    send_email(tutor_email, subject_t, body_t)
+                            except Exception:
+                                pass
+
+                            # notify parent
+                            try:
+                                if p and p.get('email'):
+                                    parent_email = p.get('email')
+                                    tutor_display = (f"{t.get('name') or ''} {t.get('surname') or ''}".strip()) if t else str(selected_tutor_id)
+                                    subject_p = f"Booking confirmed — Tutor assigned: {tutor_display}"
+                                    body_p = (
+                                        f"Hello {p.get('parent_name') or ''},\n\n"
+                                        f"Your booking for {child_name or ''} on {exam_date.isoformat()} at {start_time.strftime('%H:%M:%S')} has been confirmed.\n"
+                                        f"Assigned tutor: {tutor_display}\n"
+                                        f"Tutor email: {t.get('email') if t else 'N/A'}\n"
+                                        f"Tutor phone: {t.get('phone') if t else 'N/A'}\n\n"
+                                        f"If you have any questions, reply to this email or contact admin.\n"
+                                    )
+                                    send_email(parent_email, subject_p, body_p)
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
                 else:
                     st.error(f"Failed to create booking: {getattr(ins, 'error', None)}")
             except Exception as e:

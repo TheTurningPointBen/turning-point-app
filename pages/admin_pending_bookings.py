@@ -210,6 +210,76 @@ for booking in bookings:
             update_res = supabase.table("bookings").update({"status": "Confirmed", "tutor_id": tutor_id}).eq("id", booking.get("id")).execute()
             if getattr(update_res, 'error', None) is None:
                 st.success("Booking confirmed")
+
+                # Fetch tutor and parent records to send confirmation emails
+                try:
+                    tres = supabase.table('tutors').select('*').eq('id', tutor_id).execute()
+                    tutor = (tres.data or [None])[0]
+                except Exception:
+                    tutor = None
+
+                try:
+                    pres = supabase.table('parents').select('*').eq('id', booking.get('parent_id')).execute()
+                    parent = (pres.data or [None])[0]
+                except Exception:
+                    parent = None
+
+                # Email tutor about the assignment
+                try:
+                    if tutor and tutor.get('email'):
+                        from utils.email import send_email
+                        t_email = tutor.get('email')
+                        t_name = f"{tutor.get('name') or ''} {tutor.get('surname') or ''}".strip()
+                        subj = f"New booking assigned: {booking.get('child_name') or 'Child'} — {booking.get('subject') or ''}"
+                        body = (
+                            f"Hello {t_name or 'Tutor'},\n\n"
+                            f"You have been assigned to a booking:\n"
+                            f"Child: {booking.get('child_name')}\n"
+                            f"Subject: {booking.get('subject')}\n"
+                            f"Date: {booking.get('exam_date')}\n"
+                            f"Start Time: {booking.get('start_time')}\n"
+                            f"Duration: {booking.get('duration')} minutes\n"
+                            f"Parent contact (email): {parent.get('email') if parent else 'N/A'}\n"
+                            f"Parent phone: {parent.get('phone') if parent else 'N/A'}\n\n"
+                            f"Please log in to the admin panel to view details.\n"
+                        )
+                        try:
+                            mail = send_email(t_email, subj, body)
+                            if mail.get('ok'):
+                                st.info(f"Notification emailed to tutor {t_name}.")
+                            else:
+                                st.warning(f"Failed to email tutor: {mail.get('error')}")
+                        except Exception:
+                            st.warning("Failed to send email to tutor (exception)")
+                except Exception:
+                    pass
+
+                # Email parent confirming tutor assignment
+                try:
+                    if parent and parent.get('email'):
+                        from utils.email import send_email
+                        p_email = parent.get('email')
+                        tutor_display = (f"{tutor.get('name') or ''} {tutor.get('surname') or ''}".strip()) if tutor else str(tutor_id)
+                        subj = f"Booking confirmed — Tutor assigned: {tutor_display}"
+                        body = (
+                            f"Hello {parent.get('parent_name') or ''},\n\n"
+                            f"Your booking for {booking.get('child_name') or ''} on {booking.get('exam_date')} at {booking.get('start_time')} has been confirmed.\n"
+                            f"Assigned tutor: {tutor_display}\n"
+                            f"Tutor email: {tutor.get('email') if tutor else 'N/A'}\n"
+                            f"Tutor phone: {tutor.get('phone') if tutor else 'N/A'}\n\n"
+                            f"If you have any questions, reply to this email or contact admin.\n"
+                        )
+                        try:
+                            mail = send_email(p_email, subj, body)
+                            if mail.get('ok'):
+                                st.info("Confirmation emailed to parent.")
+                            else:
+                                st.warning(f"Failed to email parent: {mail.get('error')}")
+                        except Exception:
+                            st.warning("Failed to send email to parent (exception)")
+                except Exception:
+                    pass
+
                 safe_rerun()
             else:
                 st.error(update_res)
