@@ -7,6 +7,7 @@ except Exception:
     pass
 from datetime import datetime
 from utils.database import supabase
+from utils.email import send_email, send_admin_email
 
 
 def find_parent(parent_ref, booking=None):
@@ -258,6 +259,110 @@ try:
             st.markdown(f"**{header}**")
             st.write(details)
             st.write(parent_info)
+
+            # Tutor action buttons: Accept or Decline assignment
+            try:
+                current_status = (b.get('status') or '').strip()
+                session_key = f"tutor_action_{b.get('id')}"
+
+                # If DB already reflects an accepted/declined status, show label
+                if current_status == 'TutorConfirmed' or st.session_state.get(session_key) == 'accepted':
+                    st.markdown("**Status:** ✅ Accepted")
+                elif current_status == 'TutorDeclined' or st.session_state.get(session_key) == 'declined':
+                    st.markdown("**Status:** ❌ Declined")
+                else:
+                    action_cols = st.columns([1,1])
+                    with action_cols[0]:
+                        if st.button("✅ Accept", key=f"accept_{b.get('id')}"):
+                            try:
+                                # Set session flag so UI updates immediately
+                                st.session_state[session_key] = 'accepted'
+                                # Update booking status to indicate tutor accepted
+                                supabase.table('bookings').update({"status": "TutorConfirmed"}).eq('id', b.get('id')).execute()
+
+                                # Gather details for emails
+                                tutor_name = f"{profile.get('name','')} {profile.get('surname','')}".strip()
+                                tutor_contact = profile.get('phone') or profile.get('email') or 'no contact'
+                                child = b.get('child_name') or b.get('student_name') or ''
+                                subject = b.get('subject') or ''
+                                exam_date = b.get('exam_date') or ''
+                                start_time = b.get('start_time') or ''
+
+                                # Find parent info
+                                parent = find_parent(b.get('parent_id'), b) or {}
+                                parent_email = parent.get('email')
+                                parent_name = parent.get('parent_name') or parent.get('name') or ''
+                                parent_phone = parent.get('phone') or parent.get('mobile') or ''
+
+                                # Email notifications@theturningpoint.co.za with full details
+                                try:
+                                    notif_to = 'notifications@theturningpoint.co.za'
+                                    subj = f"Tutor accepted booking: {child} — {subject}"
+                                    body = (
+                                        f"Tutor: {tutor_name}\n"
+                                        f"Tutor contact: {tutor_contact}\n\n"
+                                        f"Parent: {parent_name}\n"
+                                        f"Parent email: {parent_email or 'N/A'}\n"
+                                        f"Parent phone: {parent_phone or 'N/A'}\n\n"
+                                        f"Child: {child}\n"
+                                        f"Subject: {subject}\n"
+                                        f"Date: {exam_date}\n"
+                                        f"Start Time: {start_time}\n"
+                                    )
+                                    send_email(notif_to, subj, body)
+                                except Exception:
+                                    pass
+
+                                # Email parent a confirmation with tutor contact
+                                try:
+                                    if parent_email:
+                                        p_subj = f"Tutor confirmed for your booking — {child}"
+                                        tutor_display = tutor_name or (profile.get('name') or '')
+                                        p_body = (
+                                            f"Hello {parent_name or ''},\n\n"
+                                            f"Your booking for {child} on {exam_date} at {start_time} has been accepted by the tutor.\n"
+                                            f"Subject: {subject}\n"
+                                            f"Tutor: {tutor_display}\n"
+                                            f"Tutor contact: {tutor_contact}\n\n"
+                                            f"If you have any questions, reply to this email or contact admin.\n\nThe Turning Point"
+                                        )
+                                        send_email(parent_email, p_subj, p_body)
+                                except Exception:
+                                    pass
+
+                                st.success("You accepted this booking. Parent and notifications team have been emailed.")
+                                try:
+                                    st.experimental_rerun()
+                                except Exception:
+                                    pass
+                            except Exception as e:
+                                st.error(f"Failed to accept booking: {e}")
+                    with action_cols[1]:
+                        if st.button("❌ Decline", key=f"decline_{b.get('id')}"):
+                            try:
+                                # Set session flag so UI updates immediately
+                                st.session_state[session_key] = 'declined'
+                                # Mark booking as declined by tutor
+                                supabase.table('bookings').update({"status": "TutorDeclined"}).eq('id', b.get('id')).execute()
+                                # Notify admins about the decline
+                                try:
+                                    admin_body = (
+                                        f"Tutor {profile.get('name')} {profile.get('surname')} (id: {profile.get('id')}) has declined booking {b.get('id')}.\n"
+                                        f"Child: {b.get('child_name')}\nSubject: {b.get('subject')}\nDate: {b.get('exam_date')}\nStart: {b.get('start_time')}\n"
+                                    )
+                                    send_admin_email(f"Tutor declined booking {b.get('id')}", admin_body)
+                                except Exception:
+                                    pass
+
+                                st.info("You declined this booking — admin has been notified.")
+                                try:
+                                    st.experimental_rerun()
+                                except Exception:
+                                    pass
+                            except Exception as e:
+                                st.error(f"Failed to decline booking: {e}")
+            except Exception:
+                pass
 
             # Debug helper: if parent info missing, show raw booking and lookup result
             if not parent_name or not (parent_contact or parent_email):

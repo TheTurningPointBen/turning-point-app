@@ -202,54 +202,7 @@ for b in rows:
             except Exception as e:
                 st.error(f"Failed to cancel booking: {e}")
     with action_col3:
-        if status == "TutorConfirmed":
-            if st.button("Finalize & Email Parent", key=f"finalize_{booking_id}"):
-                now = datetime.now()
-                existing = set(b.keys() or [])
-                candidate = {"status": "Confirmed", "confirmed_at": now.isoformat()}
-                payload = {k: v for k, v in candidate.items() if k in existing}
-                try:
-                    if payload:
-                        supabase.table('bookings').update(payload).eq('id', booking_id).execute()
-
-                    # Find parent email
-                    parent_email = None
-                    try:
-                        p_res = supabase.table('parents').select('*').eq('id', b.get('parent_id')).execute()
-                        p = (p_res.data or [None])[0]
-                        if p and p.get('email'):
-                            parent_email = p.get('email')
-                    except Exception:
-                        parent_email = None
-
-                    # Tutor info for email
-                    tutor_name = tutor_info[1] if tutor_info else (b.get('tutor_id') or 'Tutor')
-                    tutor_contact = tutor_info[2] if tutor_info else 'no contact'
-
-                    if parent_email:
-                        body = (
-                            f"Your Exam/Test booking has been confirmed.\n\n"
-                            f"Date: {exam_date}\n"
-                            f"Time: {start_time}\n"
-                            f"Subject: {subject}\n"
-                            f"Tutor: {tutor_name}\n"
-                            f"Contact: {tutor_contact}\n\n"
-                            "Please contact the tutor if you have any questions.\n\nThe Turning Point"
-                        )
-                        email_res = send_email(parent_email, "Booking Confirmed", body)
-                        if email_res.get('error'):
-                            st.warning(f"Confirmed but failed to send parent email: {email_res.get('error')}")
-                        else:
-                            st.success("Booking finalized and parent notified by email.")
-                    else:
-                        st.success("Booking finalized. Parent email not found — contact parent manually.")
-
-                    try:
-                        st.experimental_rerun()
-                    except Exception:
-                        pass
-                except Exception as e:
-                    st.error(f"Failed to finalize booking: {e}")
+        pass
 
     # Allow admin to edit the tutor profile directly
     if b.get('tutor_id'):

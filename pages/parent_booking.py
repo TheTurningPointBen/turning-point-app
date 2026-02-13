@@ -132,6 +132,25 @@ extra_time = st.number_input("Extra Time (minutes)", min_value=0, max_value=60, 
 role_options = ["Reader", "Scribe", "Both (Reader & Scribe)", "Invigilator", "Prompter", "All of the Above"]
 role_required = st.selectbox("Role Required", role_options)
 
+# Normalize role text into DB-acceptable values (check constraints expect
+# short canonical values such as 'Reader','Scribe','Both','Invigilator','Prompter','All')
+def _normalize_role_for_db(r: str):
+    try:
+        if not r:
+            return None
+        rr = r.strip()
+        if 'Both' in rr:
+            return 'Both'
+        if 'All' in rr:
+            return 'All'
+        # otherwise assume it's one of the exact DB values
+        return rr
+    except Exception:
+        return r
+
+# role value to persist in DB
+role_required_db = _normalize_role_for_db(role_required)
+
 # Show tutors who are approved and match the required role and language/availability
 def _language_column_for(subject_text: str):
     if not subject_text:
@@ -285,7 +304,7 @@ def _insert_booking(add_another=False):
         "grade": grade_val,
         "school": school_val,
         "subject": subject,
-        "role_required": role_required,
+        "role_required": role_required_db,
         "exam_date": exam_date.isoformat(),
         "start_time": start_time.strftime("%H:%M:%S"),
         "duration": duration,
