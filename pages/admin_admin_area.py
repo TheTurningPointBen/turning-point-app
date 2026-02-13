@@ -661,13 +661,35 @@ with st.expander("Create Manual Booking (Admin)"):
                 school_val = selected_parent.get('school')
 
             try:
+                # Normalize role label to DB-acceptable value (strip human-friendly extras)
+                db_role_required = role_required
+                try:
+                    if role_required:
+                        rr = str(role_required)
+                        if "Both" in rr:
+                            db_role_required = "Both"
+                        elif "Reader" in rr and "Scribe" in rr:
+                            db_role_required = "Both"
+                        elif "Reader" in rr:
+                            db_role_required = "Reader"
+                        elif "Scribe" in rr:
+                            db_role_required = "Scribe"
+                        elif "Invigilator" in rr:
+                            db_role_required = "Invigilator"
+                        elif "Prompter" in rr:
+                            db_role_required = "Prompter"
+                        elif "All" in rr:
+                            db_role_required = "All of the Above"
+                except Exception:
+                    db_role_required = role_required
+
                 ins = supabase.table('bookings').insert({
                     'parent_id': selected_parent.get('id'),
                     'child_name': child_name,
                     'grade': grade_val,
                     'school': school_val,
                     'subject': subject,
-                    'role_required': role_required,
+                    'role_required': db_role_required,
                     'exam_date': exam_date.isoformat(),
                     'start_time': start_time.strftime('%H:%M:%S'),
                     'duration': int(duration),
