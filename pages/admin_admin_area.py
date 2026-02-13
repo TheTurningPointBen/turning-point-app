@@ -2,7 +2,7 @@ import os
 import streamlit as st
 from utils.ui import hide_sidebar
 from utils.database import supabase
-from utils.email import send_admin_email, send_email
+from utils.email import send_admin_email, send_email, send_mailgun_email
 from utils.session import delete_auth_user, set_auth_user_password, get_supabase_service, get_supabase
 from datetime import date, datetime, time, timedelta
 
@@ -719,7 +719,7 @@ with st.expander("Create Manual Booking (Admin)"):
                                         f"Duration: {duration} minutes\n\n"
                                         f"Please log in to the admin panel to view details.\n"
                                     )
-                                    send_email(tutor_email, subject_t, body_t)
+                                    send_mailgun_email(tutor_email, subject_t, body_t)
                             except Exception:
                                 pass
 
@@ -737,7 +737,7 @@ with st.expander("Create Manual Booking (Admin)"):
                                         f"Tutor phone: {t.get('phone') if t else 'N/A'}\n\n"
                                         f"If you have any questions, reply to this email or contact admin.\n"
                                     )
-                                    send_email(parent_email, subject_p, body_p)
+                                    send_mailgun_email(parent_email, subject_p, body_p)
                             except Exception:
                                 pass
                     except Exception:

@@ -5,7 +5,7 @@ from utils.ui import hide_sidebar
 hide_sidebar()
 from datetime import datetime, timedelta
 from utils.database import supabase
-from utils.email import send_email, send_admin_email
+from utils.email import send_email, send_admin_email, send_mailgun_email
 from utils.session import restore_session_from_refresh
 
 # If a one-time refresh token was pushed into the URL (tp_rt), try restoring session
@@ -337,7 +337,7 @@ for booking in bookings_res.data:
                         body_lines.append(f"Contact: {tutor_contact}")
 
                     body_lines.append("\nPlease contact the tutor if you have any questions.\n\nThe Turning Point")
-                    send_parent = send_email(parent_email, "Booking Confirmed", "\n".join(body_lines))
+                    send_parent = send_mailgun_email(parent_email, "Booking Confirmed", "\n".join(body_lines))
                     if send_parent.get('error'):
                         st.warning(f"Failed to send confirmation email to parent: {send_parent.get('error')}")
                     else:
@@ -358,7 +358,7 @@ for booking in bookings_res.data:
                                 if tutor_contact:
                                     tutor_body.append(f"Contact: {tutor_contact}")
                                 tutor_body.append("\nPlease confirm your availability.\n\nThe Turning Point")
-                                send_tutor = send_email(tutor_email, "New Booking Assigned", "\n".join(tutor_body))
+                                send_tutor = send_mailgun_email(tutor_email, "New Booking Assigned", "\n".join(tutor_body))
                                 if send_tutor.get('error'):
                                     st.warning(f"Failed to send assignment email to tutor: {send_tutor.get('error')}")
                                 else:
