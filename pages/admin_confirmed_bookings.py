@@ -2,7 +2,7 @@ import streamlit as st
 from utils.ui import hide_sidebar
 
 hide_sidebar()
-from datetime import datetime
+from datetime import datetime, timedelta
 from utils.database import supabase
 
 
@@ -102,7 +102,10 @@ with back_col:
     )
 
 try:
-    bookings_res = supabase.table("bookings").select("*").eq("status", "Confirmed").order("exam_date").execute()
+    # Show bookings from now (today) up to the next 7 days
+    today = datetime.now().date()
+    end_date = (datetime.now() + timedelta(days=7)).date()
+    bookings_res = supabase.table("bookings").select("*").eq("status", "Confirmed").gte('exam_date', today.isoformat()).lte('exam_date', end_date.isoformat()).order("exam_date").execute()
     bookings = bookings_res.data or []
 except Exception as e:
     st.error(f"Could not load confirmed bookings: {e}")
