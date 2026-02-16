@@ -2,7 +2,7 @@ import os
 import streamlit as st
 from utils.ui import hide_sidebar
 from utils.database import supabase
-from utils.email import send_admin_email, send_email, send_mailgun_email
+from utils.email import send_admin_email, send_email
 from utils.session import delete_auth_user, set_auth_user_password, get_supabase_service, get_supabase
 from datetime import date, datetime, time, timedelta
 
@@ -49,6 +49,35 @@ with st.expander('SMTP Debug'):
                         st.success('TCP connection to SMTP server succeeded')
                 except Exception as e:
                     st.error(f'TCP connection failed: {e}')
+
+    # Quick SMTP test send
+    try:
+        default_from = os.getenv('EMAIL_FROM') or os.getenv('SENDER_EMAIL') or os.getenv('SMTP_USER')
+        test_recipient = st.text_input('Test email recipient', value=default_from, key='smtp_test_recipient')
+        test_subject = st.text_input('Test email subject', value='Turning Point — test email', key='smtp_test_subject')
+        test_body = st.text_area('Test email body (plain text)', value='This is a test email from Turning Point Admin SMTP Debug.', key='smtp_test_body')
+        if st.button('Send test email', key='smtp_send_test'):
+            if not test_recipient:
+                st.error('Please provide a recipient email address.')
+            else:
+                try:
+                    res = send_email(test_recipient, test_subject, test_body)
+                    if isinstance(res, dict):
+                        if res.get('ok'):
+                            st.success('Test email sent successfully (SMTP).')
+                        else:
+                            st.error(f"Test email failed: {res.get('error')}")
+                    else:
+                        # Some older helpers returned raw Response; show status
+                        try:
+                            st.write(res)
+                            st.success('Test send attempted; see response above.')
+                        except Exception:
+                            st.info('Test send attempted; check server logs for details.')
+                except Exception as e:
+                    st.error(f'Failed to send test email: {e}')
+    except Exception:
+        pass
 
 # Top-left small Back button that returns to the Admin Dashboard
 back_col1, back_col2 = st.columns([1, 8])
@@ -741,7 +770,7 @@ with st.expander("Create Manual Booking (Admin)"):
                                         f"Duration: {duration} minutes\n\n"
                                         f"Please log in to the admin panel to view details.\n"
                                     )
-                                    send_mailgun_email(tutor_email, subject_t, body_t)
+                                    send_email(tutor_email, subject_t, body_t)
                             except Exception:
                                 pass
 
@@ -759,7 +788,7 @@ with st.expander("Create Manual Booking (Admin)"):
                                         f"Tutor phone: {t.get('phone') if t else 'N/A'}\n\n"
                                         f"If you have any questions, reply to this email or contact admin.\n"
                                     )
-                                    send_mailgun_email(parent_email, subject_p, body_p)
+                                    send_email(parent_email, subject_p, body_p)
                             except Exception:
                                 pass
                     except Exception:
