@@ -4,7 +4,7 @@ from utils.ui import hide_sidebar
 hide_sidebar()
 from datetime import datetime
 from utils.database import supabase
-from utils.email import send_email, send_mailgun_email
+from utils.email import send_email
 
 st.title("Awaiting Tutor Confirmation — Admin")
 
@@ -131,7 +131,7 @@ for b in bookings:
                         f"Contact: {tutor_contact}\n\n"
                         "Please contact the tutor if you have any questions.\n\nThe Turning Point"
                     )
-                    email_res = send_mailgun_email(parent_email, "Booking Confirmed", body)
+                    email_res = send_email(parent_email, "Booking Confirmed", body)
                     if email_res.get('error'):
                         st.warning(f"Confirmed but failed to send parent email: {email_res.get('error')}")
                     else:
