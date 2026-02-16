@@ -5,6 +5,8 @@ from utils.database import supabase
 from utils.email import send_admin_email, send_email
 from utils.session import delete_auth_user, set_auth_user_password, get_supabase_service, get_supabase
 from datetime import date, datetime, time, timedelta
+import json
+import requests
 
 hide_sidebar()
 
@@ -21,61 +23,71 @@ if _svc_present:
 else:
     st.warning('SUPABASE_SERVICE_ROLE: not configured — admin service operations disabled')
 
-# SMTP debug: non-secret checks and quick connectivity test
-with st.expander('SMTP Debug'):
-    smtp_host = os.getenv('SMTP_HOST')
-    smtp_port = os.getenv('SMTP_PORT')
-    smtp_user = os.getenv('SMTP_USER')
-    smtp_pass_present = bool(os.getenv('SMTP_PASS'))
+# Mailblaze debug: check HTTP connectivity and send test messages
+with st.expander('Mailblaze Debug'):
+    base_default = os.getenv('MAILBLAZE_BASE') or os.getenv('MAILBLAZE_BASE_URL') or os.getenv('mailblaze_http') or 'https://control.mailblaze.com/api'
+    mb_key = (
+        os.getenv('MAILBLAZE_API_KEY')
+        or os.getenv('MAILBLAZE_KEY')
+        or os.getenv('mailblaze_api_key')
+        or os.getenv('MAILBLAZE_APIKEY')
+    )
 
-    st.write('SMTP host present:', bool(smtp_host))
-    st.write('SMTP port present:', bool(smtp_port))
-    st.write('SMTP user present:', bool(smtp_user))
-    st.write('SMTP password present:', smtp_pass_present)
+    st.write('Mailblaze base URL configured:', bool(base_default))
+    st.write('Mailblaze API key present:', bool(mb_key))
 
-    if st.button('Check SMTP connectivity'):
-        if not smtp_host or not smtp_port:
-            st.error('Missing SMTP_HOST or SMTP_PORT')
+    if st.button('Check Mailblaze connectivity'):
+        if not base_default:
+            st.error('Missing Mailblaze base URL (MAILBLAZE_BASE or mailblaze_http)')
         else:
-            import socket
+            st.info(f'Attempting HTTPS GET to {base_default} (5s timeout)')
             try:
-                port = int(smtp_port)
-            except Exception:
-                st.error(f'Invalid SMTP_PORT: {smtp_port}')
-            else:
-                st.info(f'Attempting TCP connect to {smtp_host}:{port} (5s timeout)')
-                try:
-                    with socket.create_connection((smtp_host, port), timeout=5):
-                        st.success('TCP connection to SMTP server succeeded')
-                except Exception as e:
-                    st.error(f'TCP connection failed: {e}')
+                r = requests.get(base_default, timeout=5)
+                st.write(f'Status: {r.status_code}')
+                if r.status_code < 400:
+                    st.success('Connectivity to Mailblaze base URL succeeded')
+                else:
+                    st.error(f'Connectivity test returned status {r.status_code}')
+            except Exception as e:
+                st.error(f'Connectivity check failed: {e}')
 
-    # Quick SMTP test send
+    # Mailblaze send test
     try:
         default_from = os.getenv('EMAIL_FROM') or os.getenv('SENDER_EMAIL') or os.getenv('SMTP_USER')
-        test_recipient = st.text_input('Test email recipient', value=default_from, key='smtp_test_recipient')
-        test_subject = st.text_input('Test email subject', value='Turning Point — test email', key='smtp_test_subject')
-        test_body = st.text_area('Test email body (plain text)', value='This is a test email from Turning Point Admin SMTP Debug.', key='smtp_test_body')
-        if st.button('Send test email', key='smtp_send_test'):
-            if not test_recipient:
-                st.error('Please provide a recipient email address.')
+        mb_recipient = st.text_input('Mailblaze test recipient', value=default_from, key='mb_test_recipient')
+        mb_subject = st.text_input('Mailblaze test subject', value='Turning Point — Mailblaze test', key='mb_test_subject')
+        mb_body = st.text_area('Mailblaze test body (plain text)', value='This is a Mailblaze test email from Turning Point Admin.', key='mb_test_body')
+        if st.button('Send test via Mailblaze', key='mb_send_test'):
+            if not mb_key:
+                st.error('MAILBLAZE_API_KEY (or mailblaze_api_key) is not set in environment')
+            elif not default_from:
+                st.error('SENDER_EMAIL or EMAIL_FROM is not configured')
             else:
-                try:
-                    res = send_email(test_recipient, test_subject, test_body)
-                    if isinstance(res, dict):
-                        if res.get('ok'):
-                            st.success('Test email sent successfully (SMTP).')
-                        else:
-                            st.error(f"Test email failed: {res.get('error')}")
-                    else:
-                        # Some older helpers returned raw Response; show status
-                        try:
-                            st.write(res)
-                            st.success('Test send attempted; see response above.')
-                        except Exception:
-                            st.info('Test send attempted; check server logs for details.')
-                except Exception as e:
-                    st.error(f'Failed to send test email: {e}')
+                payload = {
+                    "personalizations": [{"to": [{"email": mb_recipient}]}],
+                    "from": {"email": default_from},
+                    "subject": mb_subject,
+                    "content": [{"type": "text/plain", "value": mb_body}],
+                }
+                headers = {"Authorization": f"Bearer {mb_key}", "Content-Type": "application/json"}
+                base = os.getenv('MAILBLAZE_BASE') or os.getenv('MAILBLAZE_BASE_URL') or os.getenv('mailblaze_http') or 'https://control.mailblaze.com/api'
+                endpoints = [f"{base}/mail/send", f"{base}/v1/mail/send", f"{base}/v1/send", f"{base}/send"]
+                results = []
+                for ep in endpoints:
+                    try:
+                        r = requests.post(ep, data=json.dumps(payload), headers=headers, timeout=10)
+                        results.append((ep, r.status_code, r.text))
+                        if r.status_code in (200, 202):
+                            st.success(f'Mailblaze test send accepted via {ep}')
+                            break
+                    except Exception as e:
+                        results.append((ep, 'err', repr(e)))
+                st.write('Results:')
+                for ep, status, body in results:
+                    try:
+                        st.text(f'{ep} → {status} — {body}')
+                    except Exception:
+                        st.write(f'{ep} → {status}')
     except Exception:
         pass
 

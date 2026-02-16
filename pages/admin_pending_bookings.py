@@ -251,8 +251,7 @@ for booking in bookings:
                             f"Please log in to the admin panel to view details.\n"
                         )
                         try:
-                            from utils.email import send_mailgun_email
-                            mail = send_mailgun_email(t_email, subj, body)
+                            mail = send_email(t_email, subj, body)
                             if mail.get('ok'):
                                 st.info(f"Notification emailed to tutor {t_name}.")
                             else:
@@ -278,8 +277,7 @@ for booking in bookings:
                             f"If you have any questions, reply to this email or contact admin.\n"
                         )
                         try:
-                            from utils.email import send_mailgun_email
-                            mail = send_mailgun_email(p_email, subj, body)
+                            mail = send_email(p_email, subj, body)
                             if mail.get('ok'):
                                 st.info("Confirmation emailed to parent.")
                             else:

@@ -24,18 +24,25 @@ def mask(s):
         return "****"
     return s[:4] + "..." + s[-4:]
 
-st.markdown("This page runs simple connectivity checks for your SMTP server and SendGrid API. It does not reveal secrets.")
+st.markdown("This page runs simple connectivity checks for your SMTP server and Mailblaze HTTP API. It does not reveal secrets.")
 
 smtp_host = os.getenv("SMTP_HOST")
 smtp_port = os.getenv("SMTP_PORT") or "587"
-sg_key = os.getenv("SENDGRID_API_KEY")
+mb_key = (
+    os.getenv("MAILBLAZE_API_KEY")
+    or os.getenv("MAILBLAZE_KEY")
+    or os.getenv("mailblaze_api_key")
+    or os.getenv("MAILBLAZE_APIKEY")
+)
+mb_base = os.getenv("MAILBLAZE_BASE") or os.getenv("MAILBLAZE_BASE_URL") or os.getenv('mailblaze_http') or "https://control.mailblaze.com/api"
 sender = os.getenv("SENDER_EMAIL") or os.getenv("SMTP_USER")
 
 st.write("**Configured values (masked):**")
 st.write(f"SMTP_HOST: {mask(smtp_host)}")
 st.write(f"SMTP_PORT: {smtp_port}")
 st.write(f"SENDER_EMAIL: {mask(sender)}")
-st.write(f"SENDGRID_API_KEY: {mask(sg_key)}")
+st.write(f"MAILBLAZE_API_KEY: {mask(mb_key)}")
+st.write(f"MAILBLAZE_BASE: {mask(mb_base)}")
 
 if st.button("Run connectivity tests"):
     results = {}
@@ -55,21 +62,24 @@ if st.button("Run connectivity tests"):
     except Exception as e:
         results['smtp_connect'] = f"CONNECT_FAIL: {e}"
 
-    # Test SendGrid API reachability
+    # Test Mailblaze API reachability
     try:
-        # If API key present, do an authenticated request to get a clear status
-        headers = {"Authorization": f"Bearer {sg_key}"} if sg_key else {}
+        headers = {"Authorization": f"Bearer {mb_key}" } if mb_key else {}
     except Exception:
         headers = {}
 
     try:
-        # simple GET to SendGrid root endpoint
-        r = requests.get("https://api.sendgrid.com/v3/user/profile", headers=headers, timeout=8)
-        results['sendgrid_status'] = f"HTTP {r.status_code}"
-        if r.text:
-            results['sendgrid_body'] = r.text[:500]
+        # try base URL and a couple common endpoints for debugging
+        mb_results = []
+        for ep in [mb_base, f"{mb_base}/v1/user", f"{mb_base}/v1/profile"]:
+            try:
+                r = requests.get(ep, headers=headers, timeout=8)
+                mb_results.append((ep, r.status_code, (r.text or '')[:500]))
+            except Exception as e:
+                mb_results.append((ep, 'err', repr(e)))
+        results['mailblaze'] = mb_results
     except Exception as e:
-        results['sendgrid_status'] = f"REQUEST_FAIL: {e}"
+        results['mailblaze'] = f"REQUEST_FAIL: {e}"
 
     st.json(results)
 

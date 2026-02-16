@@ -7,7 +7,7 @@ except Exception:
     pass
 from datetime import datetime
 from utils.database import supabase
-from utils.email import send_email, send_admin_email, send_mailgun_email
+from utils.email import send_email, send_admin_email
 
 
 def find_parent(parent_ref, booking=None):
@@ -326,7 +326,7 @@ try:
                                             f"Tutor contact: {tutor_contact}\n\n"
                                             f"If you have any questions, reply to this email or contact admin.\n\nThe Turning Point"
                                         )
-                                        send_mailgun_email(parent_email, p_subj, p_body)
+                                        send_email(parent_email, p_subj, p_body)
                                 except Exception:
                                     pass
 
