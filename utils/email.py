@@ -51,27 +51,7 @@ def send_admin_email(subject: str, body: str, admin_email: str | None = None) ->
                 return {"ok": True}
         except Exception:
             pass
-        # Try Mailgun HTTP API if configured
-        mg_key = os.getenv("MAILGUN_API_KEY")
-        mg_domain = os.getenv("MAILGUN_DOMAIN")
-        if mg_key and mg_domain:
-            try:
-                from_email = os.getenv("SENDER_EMAIL") or user
-                sender_name = os.getenv("SENDER_NAME")
-                mg_from = f"{sender_name} <{from_email}>" if sender_name else from_email
-                mg_url = f"https://api.mailgun.net/v3/{mg_domain}/messages"
-                data = {"from": mg_from, "to": admin, "subject": subject, "text": body}
-                r = requests.post(mg_url, auth=("api", mg_key), data=data, timeout=10)
-                if r.status_code in (200, 202):
-                    return {"ok": True}
-                return {"error": f"Mailgun error: {r.status_code} {r.text}"}
-            except Exception as me:
-                # Fall through to SendGrid fallback if available
-                mg_err = repr(me)
-        else:
-            mg_err = None
-
-        # If SendGrid API key is available, try API fallback
+        # Try SendGrid API fallback if available
         sg_key = os.getenv("SENDGRID_API_KEY")
         if sg_key:
             try:
@@ -91,50 +71,12 @@ def send_admin_email(subject: str, body: str, admin_email: str | None = None) ->
                     return {"ok": True}
                 return {"error": f"SendGrid error: {r.status_code} {r.text}"}
             except Exception as se:
-                details = []
-                if mg_err:
-                    details.append(f"Mailgun error: {mg_err}")
-                details.append(f"SMTP error: {repr(e)}")
-                details.append(f"SendGrid error: {repr(se)}")
-                return {"error": "; ".join(details)}
-        # If no HTTP fallback used/available, return original SMTP error (and Mailgun error if present)
-        if mg_err:
-            return {"error": f"SMTP error: {repr(e)}; Mailgun error: {mg_err}"}
+                return {"error": f"SMTP error: {repr(e)}; SendGrid error: {repr(se)}"}
         return {"error": repr(e)}
 
 
-def send_mailgun_email(to_email: str, subject: str, text: str | None = None, html: str | None = None) -> dict:
-    """Send email via Mailgun HTTP API using MAILGUN_API_KEY and MAILGUN_DOMAIN.
+# Mailgun helper removed: Mailgun is no longer used. SMTP (Gmail) is preferred.
 
-    Backwards-compatible: if callers pass `text` only, pass as plain text. Callers can pass `html` too.
-    Returns {'ok': True} or {'error': 'message'}
-    """
-    mg_key = os.getenv("MAILGUN_API_KEY")
-    mg_domain = os.getenv("MAILGUN_DOMAIN")
-    mail_from = os.getenv("MAIL_FROM") or os.getenv("SENDER_EMAIL") or os.getenv("SMTP_USER")
-    if not (mg_key and mg_domain and mail_from and to_email):
-        return {"error": "Missing Mailgun configuration or recipient"}
-
-    mg_url = f"https://api.mailgun.net/v3/{mg_domain}/messages"
-    payload = {
-        "from": f"The Turning Point <{mail_from}>",
-        "to": to_email,
-        "subject": subject,
-    }
-    if text:
-        payload["text"] = text
-    else:
-        payload["text"] = ""
-    if html:
-        payload["html"] = html
-
-    try:
-        r = requests.post(mg_url, auth=("api", mg_key), data=payload, timeout=10)
-        if r.status_code in (200, 202):
-            return {"ok": True}
-        return {"error": f"Mailgun error: {r.status_code} {r.text}"}
-    except Exception as e:
-        return {"error": repr(e)}
 
 
 def send_email(to_email: str, subject: str, body: str, html: str | None = None) -> dict:
@@ -187,26 +129,7 @@ def send_email(to_email: str, subject: str, body: str, html: str | None = None) 
                 return {"ok": True}
         except Exception:
             pass
-        # Try Mailgun HTTP API if configured
-        mg_key = os.getenv("MAILGUN_API_KEY")
-        mg_domain = os.getenv("MAILGUN_DOMAIN")
-        if mg_key and mg_domain:
-            try:
-                from_email = os.getenv("SENDER_EMAIL") or user
-                sender_name = os.getenv("SENDER_NAME")
-                mg_from = f"{sender_name} <{from_email}>" if sender_name else from_email
-                mg_url = f"https://api.mailgun.net/v3/{mg_domain}/messages"
-                data = {"from": mg_from, "to": to_email, "subject": subject, "text": body}
-                r = requests.post(mg_url, auth=("api", mg_key), data=data, timeout=10)
-                if r.status_code in (200, 202):
-                    return {"ok": True}
-                return {"error": f"Mailgun error: {r.status_code} {r.text}"}
-            except Exception as me:
-                mg_err = repr(me)
-        else:
-            mg_err = None
-
-        # Try SendGrid API fallback
+        # Try SendGrid API fallback if available
         sg_key = os.getenv("SENDGRID_API_KEY")
         if sg_key:
             try:
@@ -226,12 +149,5 @@ def send_email(to_email: str, subject: str, body: str, html: str | None = None) 
                     return {"ok": True}
                 return {"error": f"SendGrid error: {r.status_code} {r.text}"}
             except Exception as se:
-                details = []
-                if mg_err:
-                    details.append(f"Mailgun error: {mg_err}")
-                details.append(f"SMTP error: {repr(e)}")
-                details.append(f"SendGrid error: {repr(se)}")
-                return {"error": "; ".join(details)}
-        if mg_err:
-            return {"error": f"SMTP error: {repr(e)}; Mailgun error: {mg_err}"}
+                return {"error": f"SMTP error: {repr(e)}; SendGrid error: {repr(se)}"}
         return {"error": repr(e)}
