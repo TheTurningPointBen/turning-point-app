@@ -5,6 +5,8 @@ from utils.database import supabase
 from utils.email import send_admin_email, send_email
 from utils.session import delete_auth_user, set_auth_user_password, get_supabase_service, get_supabase
 from datetime import date, datetime, time, timedelta
+import json
+import requests
 
 hide_sidebar()
 
