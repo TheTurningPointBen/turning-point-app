@@ -9,6 +9,7 @@ from typing import Optional, Dict
 import os
 import json
 import requests
+import re
 
 
 def _send_via_mailblaze(to_addr: str, subject: str, body: str, html: Optional[str] = None) -> Dict:
@@ -27,9 +28,9 @@ def _send_via_mailblaze(to_addr: str, subject: str, body: str, html: Optional[st
         or os.getenv("MAILBLAZE_BASEURL")
         or "https://control.mailblaze.com/api"
     )
-    sender = os.getenv("SENDER_EMAIL") or os.getenv("EMAIL_FROM") or os.getenv("SMTP_USER") or os.getenv("ADMIN_EMAIL")
+    sender = _get_sender()
     if not sender:
-        return {"error": "Missing sender address: set SENDER_EMAIL or EMAIL_FROM"}
+        return {"error": "Missing sender address: set SENDER_EMAIL or EMAIL_FROM (case-sensitive) to a valid email"}
 
     payload = {
         "personalizations": [{"to": [{"email": to_addr}]}],
@@ -54,13 +55,41 @@ def _send_via_mailblaze(to_addr: str, subject: str, body: str, html: Optional[st
     return {"error": f"mailblaze: {last_err}"}
 
 
+def _get_sender() -> Optional[str]:
+    """Find a sender email from common env var names (case-insensitive variants).
+
+    Returns the first value that contains an email address. Accepts values like
+    'Name <email@domain>' and extracts the email. Returns None if no usable sender.
+    """
+    candidates = [
+        os.getenv("SENDER_EMAIL"),
+        os.getenv("sender_email"),
+        os.getenv("EMAIL_FROM"),
+        os.getenv("email_from"),
+        os.getenv("SMTP_USER"),
+        os.getenv("ADMIN_EMAIL"),
+    ]
+    for c in candidates:
+        if not c:
+            continue
+        c = c.strip()
+        if "@" in c:
+            # If it's a display name with an embedded email, extract it
+            m = re.search(r"([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})", c)
+            if m:
+                return m.group(1)
+            # Otherwise assume the whole string is an email-like value
+            return c
+    return None
+
+
 def _send_via_sendgrid(to_addr: str, subject: str, body: str, html: Optional[str] = None) -> Dict:
     sg_key = os.getenv("SENDGRID_API_KEY")
     if not sg_key:
         return {"error": "no-sendgrid-key"}
-    from_email = os.getenv("SENDER_EMAIL") or os.getenv("EMAIL_FROM")
+    from_email = _get_sender()
     if not from_email:
-        return {"error": "no-sender-email"}
+        return {"error": "Missing sender address: set SENDER_EMAIL or EMAIL_FROM to a valid email"}
 
     content = []
     if body:
@@ -124,7 +153,7 @@ def send_email(to_email: str, subject: str, body: str, html: Optional[str] = Non
 def send_admin_email(subject: str, body: str, admin_email: Optional[str] = None) -> Dict:
     """Send an email to admin. Uses same provider preference as `send_email`.
     """
-    sender = os.getenv("EMAIL_FROM") or os.getenv("SENDER_EMAIL") or os.getenv("SMTP_USER")
+    sender = _get_sender()
     admin = admin_email or os.getenv("ADMIN_EMAIL") or sender
     if not admin:
         return {"error": "no-admin-email"}
