@@ -81,6 +81,47 @@ with st.expander('SMTP Debug'):
     except Exception:
         pass
 
+    # Mailblaze API quick test (HTTP)
+    try:
+        mb_key = os.getenv('MAILBLAZE_API_KEY') or os.getenv('MAILBLAZE_KEY')
+        mb_from = os.getenv('SENDER_EMAIL') or os.getenv('EMAIL_FROM') or os.getenv('SMTP_USER')
+        st.markdown('---')
+        st.write('Optional: test Mailblaze HTTP API (uses `MAILBLAZE_API_KEY` and `SENDER_EMAIL`)')
+        mb_recipient = st.text_input('Mailblaze test recipient', value=default_from, key='mb_test_recipient')
+        if st.button('Send test via Mailblaze', key='mb_send_test'):
+            if not mb_key:
+                st.error('MAILBLAZE_API_KEY is not set in environment')
+            elif not mb_from:
+                st.error('SENDER_EMAIL or EMAIL_FROM is not configured')
+            else:
+                payload = {
+                    "personalizations": [{"to": [{"email": mb_recipient}]}],
+                    "from": {"email": mb_from},
+                    "subject": st.session_state.get('smtp_test_subject', 'Turning Point — Mailblaze test'),
+                    "content": [{"type": "text/plain", "value": st.session_state.get('smtp_test_body', 'This is a Mailblaze test email from Turning Point.')}],
+                }
+                headers = {"Authorization": f"Bearer {mb_key}", "Content-Type": "application/json"}
+                base = os.getenv('MAILBLAZE_BASE') or os.getenv('MAILBLAZE_BASE_URL') or 'https://control.mailblaze.com/api'
+                endpoints = [f"{base}/mail/send", f"{base}/v1/mail/send", f"{base}/v1/send", f"{base}/send"]
+                results = []
+                for ep in endpoints:
+                    try:
+                        r = requests.post(ep, data=json.dumps(payload), headers=headers, timeout=10)
+                        results.append((ep, r.status_code, r.text))
+                        if r.status_code in (200, 202):
+                            st.success(f'Mailblaze test send accepted via {ep}')
+                            break
+                    except Exception as e:
+                        results.append((ep, 'err', repr(e)))
+                st.write('Results:')
+                for ep, status, body in results:
+                    try:
+                        st.text(f'{ep} → {status} — {body}')
+                    except Exception:
+                        st.write(f'{ep} → {status}')
+    except Exception:
+        pass
+
     # SendGrid API quick test (HTTP)
     try:
         sg_key = os.getenv('SENDGRID_API_KEY')

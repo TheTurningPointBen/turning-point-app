@@ -87,6 +87,42 @@ def send_admin_email(subject: str, body: str, admin_email: str | None = None) ->
                 return {"error": f"SendGrid exception: {repr(e)}"}
 
 
+        def _send_via_mailblaze(to_addr: str, subject: str, body: str, html: Optional[str] = None) -> Dict:
+            """Send via Mailblaze HTTP API. Base URL configurable by MAILBLAZE_BASE (defaults to control.mailblaze.com/api).
+            Returns {'ok': True} or {'error': '...'} and exposes provider response for debugging.
+            """
+            mb_key = os.getenv("MAILBLAZE_API_KEY") or os.getenv("MAILBLAZE_KEY") or os.getenv("MAILBLAZE_APIKEY")
+            if not mb_key:
+                return {"error": "no-mailblaze-key"}
+            base = os.getenv("MAILBLAZE_BASE") or os.getenv("MAILBLAZE_BASE_URL") or "https://control.mailblaze.com/api"
+            sender = os.getenv("SENDER_EMAIL") or os.getenv("EMAIL_FROM")
+            if not sender:
+                return {"error": "no-sender-email"}
+
+            payload = {
+                "personalizations": [{"to": [{"email": to_addr}]}],
+                "from": {"email": sender},
+                "subject": subject,
+                "content": [{"type": "text/plain", "value": body or ""}],
+            }
+            if html:
+                payload["content"].append({"type": "text/html", "value": html})
+
+            headers = {"Authorization": f"Bearer {mb_key}", "Content-Type": "application/json"}
+            # Try common endpoint path; Mailblaze may vary — admin UI will show response for debugging
+            endpoints = [f"{base}/mail/send", f"{base}/v1/mail/send", f"{base}/v1/send", f"{base}/send"]
+            last_err = None
+            for ep in endpoints:
+                try:
+                    r = requests.post(ep, data=json.dumps(payload), headers=headers, timeout=10)
+                    if r.status_code in (200, 202):
+                        return {"ok": True}
+                    last_err = f"{ep} -> {r.status_code} {r.text}"
+                except Exception as e:
+                    last_err = repr(e)
+            return {"error": f"Mailblaze error: {last_err}"}
+
+
         def _send_via_smtp(msg: EmailMessage) -> Dict:
             """Send EmailMessage via SMTP using env vars. Returns {'ok': True} or {'error': '...'}"""
             host = os.getenv("SMTP_HOST")
@@ -125,10 +161,14 @@ def send_admin_email(subject: str, body: str, admin_email: str | None = None) ->
             """
             provider = (os.getenv("EMAIL_PROVIDER") or "").lower()
 
-            # If provider prefers sendgrid, try it first
+            # If provider prefers sendgrid or mailblaze, try preferred provider first
             if provider == "sendgrid":
                 sg_res = _send_via_sendgrid(to_email, subject, body, html=html)
                 if sg_res.get("ok"):
+                    return {"ok": True}
+            elif provider == "mailblaze":
+                mb_res = _send_via_mailblaze(to_email, subject, body, html=html)
+                if mb_res.get("ok"):
                     return {"ok": True}
 
             # Build EmailMessage for SMTP
@@ -155,19 +195,27 @@ def send_admin_email(subject: str, body: str, admin_email: str | None = None) ->
             if smtp_res.get("ok"):
                 return {"ok": True}
 
-            # If provider was explicitly sendgrid and SMTP failed, try SendGrid now
+            # If provider was explicitly sendgrid or mailblaze and SMTP failed, try them now
             if provider == "sendgrid":
                 sg_res = _send_via_sendgrid(to_email, subject, body, html=html)
                 if sg_res.get("ok"):
                     return {"ok": True}
                 return {"error": f"SMTP failed; SendGrid: {sg_res.get('error')}"}
+            if provider == "mailblaze":
+                mb_res = _send_via_mailblaze(to_email, subject, body, html=html)
+                if mb_res.get("ok"):
+                    return {"ok": True}
+                return {"error": f"SMTP failed; Mailblaze: {mb_res.get('error')}"}
 
-            # Otherwise, try SendGrid fallback
+            # Otherwise, try SendGrid then Mailblaze as fallbacks
             sg_res = _send_via_sendgrid(to_email, subject, body, html=html)
             if sg_res.get("ok"):
                 return {"ok": True}
+            mb_res = _send_via_mailblaze(to_email, subject, body, html=html)
+            if mb_res.get("ok"):
+                return {"ok": True}
 
-            return {"error": f"SMTP: {smtp_res.get('error')}; SendGrid: {sg_res.get('error')}"}
+            return {"error": f"SMTP: {smtp_res.get('error')}; SendGrid: {sg_res.get('error')}; Mailblaze: {mb_res.get('error')}"}
 
 
         def send_admin_email(subject: str, body: str, admin_email: Optional[str] = None) -> Dict:
@@ -184,10 +232,14 @@ def send_admin_email(subject: str, body: str, admin_email: str | None = None) ->
             if not admin:
                 return {"error": "no-admin-email"}
 
-            # If provider prefers sendgrid, try it first
+            # If provider prefers sendgrid or mailblaze, try preferred provider first
             if provider == "sendgrid":
                 sg_res = _send_via_sendgrid(admin, subject, body)
                 if sg_res.get("ok"):
+                    return {"ok": True}
+            elif provider == "mailblaze":
+                mb_res = _send_via_mailblaze(admin, subject, body)
+                if mb_res.get("ok"):
                     return {"ok": True}
 
             # Build EmailMessage and try SMTP
@@ -204,19 +256,27 @@ def send_admin_email(subject: str, body: str, admin_email: str | None = None) ->
             if smtp_res.get("ok"):
                 return {"ok": True}
 
-            # If provider preference was sendgrid, try it after SMTP
+            # If provider preference was sendgrid or mailblaze, try them after SMTP
             if provider == "sendgrid":
                 sg_res = _send_via_sendgrid(admin, subject, body)
                 if sg_res.get("ok"):
                     return {"ok": True}
                 return {"error": f"SMTP failed; SendGrid: {sg_res.get('error')}"}
+            if provider == "mailblaze":
+                mb_res = _send_via_mailblaze(admin, subject, body)
+                if mb_res.get("ok"):
+                    return {"ok": True}
+                return {"error": f"SMTP failed; Mailblaze: {mb_res.get('error')}"}
 
-            # Otherwise try SendGrid as fallback
+            # Otherwise try SendGrid then Mailblaze as fallbacks
             sg_res = _send_via_sendgrid(admin, subject, body)
             if sg_res.get("ok"):
                 return {"ok": True}
+            mb_res = _send_via_mailblaze(admin, subject, body)
+            if mb_res.get("ok"):
+                return {"ok": True}
 
-            return {"error": f"SMTP: {smtp_res.get('error')}; SendGrid: {sg_res.get('error')}"}
+            return {"error": f"SMTP: {smtp_res.get('error')}; SendGrid: {sg_res.get('error')}; Mailblaze: {mb_res.get('error')}"}
 
 
         def send_mailgun_email(to_email: str, subject: str, text: Optional[str] = None, html: Optional[str] = None) -> Dict:
