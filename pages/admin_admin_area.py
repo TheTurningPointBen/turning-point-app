@@ -79,6 +79,42 @@ with st.expander('SMTP Debug'):
     except Exception:
         pass
 
+    # SendGrid API quick test (HTTP)
+    try:
+        sg_key = os.getenv('SENDGRID_API_KEY')
+        sg_from = os.getenv('SENDER_EMAIL') or os.getenv('EMAIL_FROM') or os.getenv('SMTP_USER')
+        st.markdown('---')
+        st.write('Optional: test SendGrid HTTP API (uses `SENDGRID_API_KEY` and `SENDER_EMAIL`)')
+        sg_recipient = st.text_input('SendGrid test recipient', value=default_from, key='sg_test_recipient')
+        if st.button('Send test via SendGrid', key='sg_send_test'):
+            if not sg_key:
+                st.error('SENDGRID_API_KEY is not set in environment')
+            elif not sg_from:
+                st.error('SENDER_EMAIL or EMAIL_FROM is not configured')
+            else:
+                payload = {
+                    "personalizations": [{"to": [{"email": sg_recipient}]}],
+                    "from": {"email": sg_from},
+                    "subject": st.session_state.get('smtp_test_subject', 'Turning Point — SendGrid test'),
+                    "content": [{"type": "text/plain", "value": st.session_state.get('smtp_test_body', 'This is a SendGrid test email from Turning Point.')}],
+                }
+                headers = {"Authorization": f"Bearer {sg_key}", "Content-Type": "application/json"}
+                try:
+                    r = requests.post('https://api.sendgrid.com/v3/mail/send', data=json.dumps(payload), headers=headers, timeout=10)
+                    st.write(f'Status: {r.status_code}')
+                    try:
+                        st.text(r.text)
+                    except Exception:
+                        st.write('Response received; check logs for details')
+                    if r.status_code in (200, 202):
+                        st.success('SendGrid test send accepted')
+                    else:
+                        st.error('SendGrid test send failed; see response above')
+                except Exception as e:
+                    st.error(f'HTTP request failed: {e}')
+    except Exception:
+        pass
+
 # Top-left small Back button that returns to the Admin Dashboard
 back_col1, back_col2 = st.columns([1, 8])
 with back_col1:
