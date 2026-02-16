@@ -83,7 +83,12 @@ with st.expander('SMTP Debug'):
 
     # Mailblaze API quick test (HTTP)
     try:
-        mb_key = os.getenv('MAILBLAZE_API_KEY') or os.getenv('MAILBLAZE_KEY')
+        mb_key = (
+            os.getenv('MAILBLAZE_API_KEY')
+            or os.getenv('MAILBLAZE_KEY')
+            or os.getenv('mailblaze_api_key')
+            or os.getenv('MAILBLAZE_APIKEY')
+        )
         mb_from = os.getenv('SENDER_EMAIL') or os.getenv('EMAIL_FROM') or os.getenv('SMTP_USER')
         st.markdown('---')
         st.write('Optional: test Mailblaze HTTP API (uses `MAILBLAZE_API_KEY` and `SENDER_EMAIL`)')
@@ -101,7 +106,13 @@ with st.expander('SMTP Debug'):
                     "content": [{"type": "text/plain", "value": st.session_state.get('smtp_test_body', 'This is a Mailblaze test email from Turning Point.')}],
                 }
                 headers = {"Authorization": f"Bearer {mb_key}", "Content-Type": "application/json"}
-                base = os.getenv('MAILBLAZE_BASE') or os.getenv('MAILBLAZE_BASE_URL') or 'https://control.mailblaze.com/api'
+                base = (
+                    os.getenv('MAILBLAZE_BASE')
+                    or os.getenv('MAILBLAZE_BASE_URL')
+                    or os.getenv('mailblaze_http')
+                    or os.getenv('MAILBLAZE_HTTP')
+                    or 'https://control.mailblaze.com/api'
+                )
                 endpoints = [f"{base}/mail/send", f"{base}/v1/mail/send", f"{base}/v1/send", f"{base}/send"]
                 results = []
                 for ep in endpoints:

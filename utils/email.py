@@ -91,10 +91,23 @@ def send_admin_email(subject: str, body: str, admin_email: str | None = None) ->
             """Send via Mailblaze HTTP API. Base URL configurable by MAILBLAZE_BASE (defaults to control.mailblaze.com/api).
             Returns {'ok': True} or {'error': '...'} and exposes provider response for debugging.
             """
-            mb_key = os.getenv("MAILBLAZE_API_KEY") or os.getenv("MAILBLAZE_KEY") or os.getenv("MAILBLAZE_APIKEY")
+            mb_key = (
+                os.getenv("MAILBLAZE_API_KEY")
+                or os.getenv("MAILBLAZE_KEY")
+                or os.getenv("MAILBLAZE_APIKEY")
+                or os.getenv("mailblaze_api_key")
+                or os.getenv("MAILBLAZE_APIKEY")
+            )
             if not mb_key:
                 return {"error": "no-mailblaze-key"}
-            base = os.getenv("MAILBLAZE_BASE") or os.getenv("MAILBLAZE_BASE_URL") or "https://control.mailblaze.com/api"
+            base = (
+                os.getenv("MAILBLAZE_BASE")
+                or os.getenv("MAILBLAZE_BASE_URL")
+                or os.getenv("MAILBLAZE_BASEURL")
+                or os.getenv("mailblaze_http")
+                or os.getenv("MAILBLAZE_HTTP")
+                or "https://control.mailblaze.com/api"
+            )
             sender = os.getenv("SENDER_EMAIL") or os.getenv("EMAIL_FROM")
             if not sender:
                 return {"error": "no-sender-email"}
