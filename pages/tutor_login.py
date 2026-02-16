@@ -207,7 +207,7 @@ with tab1:
     # -------------------------
     # FORGOT PASSWORD (disabled)
     # -------------------------
-    st.info("To change your password please email notifications@theturningpoint.co.za for assistance.")
+    st.info("To change your password please contact admin for assistance.")
 
 # -------------------------
 # REGISTER

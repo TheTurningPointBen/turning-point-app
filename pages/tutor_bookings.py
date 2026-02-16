@@ -7,7 +7,8 @@ except Exception:
     pass
 from datetime import datetime
 from utils.database import supabase
-from utils.email import send_email, send_admin_email
+import os
+from utils.email import send_email, send_admin_email, _get_sender
 
 
 def find_parent(parent_ref, booking=None):
@@ -294,22 +295,23 @@ try:
                                 parent_name = parent.get('parent_name') or parent.get('name') or ''
                                 parent_phone = parent.get('phone') or parent.get('mobile') or ''
 
-                                # Email notifications@theturningpoint.co.za with full details
+                                # Email configured admin/notifications address with full details (if configured)
                                 try:
-                                    notif_to = 'notifications@theturningpoint.co.za'
-                                    subj = f"Tutor accepted booking: {child} — {subject}"
-                                    body = (
-                                        f"Tutor: {tutor_name}\n"
-                                        f"Tutor contact: {tutor_contact}\n\n"
-                                        f"Parent: {parent_name}\n"
-                                        f"Parent email: {parent_email or 'N/A'}\n"
-                                        f"Parent phone: {parent_phone or 'N/A'}\n\n"
-                                        f"Child: {child}\n"
-                                        f"Subject: {subject}\n"
-                                        f"Date: {exam_date}\n"
-                                        f"Start Time: {start_time}\n"
-                                    )
-                                    send_email(notif_to, subj, body)
+                                    notif_to = os.getenv('ADMIN_EMAIL') or _get_sender()
+                                    if notif_to:
+                                        subj = f"Tutor accepted booking: {child} — {subject}"
+                                        body = (
+                                            f"Tutor: {tutor_name}\n"
+                                            f"Tutor contact: {tutor_contact}\n\n"
+                                            f"Parent: {parent_name}\n"
+                                            f"Parent email: {parent_email or 'N/A'}\n"
+                                            f"Parent phone: {parent_phone or 'N/A'}\n\n"
+                                            f"Child: {child}\n"
+                                            f"Subject: {subject}\n"
+                                            f"Date: {exam_date}\n"
+                                            f"Start Time: {start_time}\n"
+                                        )
+                                        send_email(notif_to, subj, body)
                                 except Exception:
                                     pass
 
