@@ -2,7 +2,7 @@ import os
 import streamlit as st
 from utils.ui import hide_sidebar
 from utils.database import supabase
-from utils.email import send_admin_email, send_email
+from utils.email import send_admin_email, send_email, _get_sender
 from utils.session import delete_auth_user, set_auth_user_password, get_supabase_service, get_supabase
 from datetime import date, datetime, time, timedelta
 import json
@@ -53,7 +53,7 @@ with st.expander('Mailblaze Debug'):
 
     # Mailblaze send test
     try:
-        default_from = os.getenv('EMAIL_FROM') or os.getenv('SENDER_EMAIL') or os.getenv('SMTP_USER')
+        default_from = _get_sender() or os.getenv('SMTP_USER')
         mb_recipient = st.text_input('Mailblaze test recipient', value=default_from, key='mb_test_recipient')
         mb_subject = st.text_input('Mailblaze test subject', value='Turning Point — Mailblaze test', key='mb_test_subject')
         mb_body = st.text_area('Mailblaze test body (plain text)', value='This is a Mailblaze test email from Turning Point Admin.', key='mb_test_body')
@@ -94,7 +94,7 @@ with st.expander('Mailblaze Debug'):
     # SendGrid API quick test (HTTP)
     try:
         sg_key = os.getenv('SENDGRID_API_KEY')
-        sg_from = os.getenv('SENDER_EMAIL') or os.getenv('EMAIL_FROM') or os.getenv('SMTP_USER')
+        sg_from = _get_sender() or os.getenv('SMTP_USER')
         st.markdown('---')
         st.write('Optional: test SendGrid HTTP API (uses `SENDGRID_API_KEY` and `SENDER_EMAIL`)')
         sg_recipient = st.text_input('SendGrid test recipient', value=default_from, key='sg_test_recipient')
