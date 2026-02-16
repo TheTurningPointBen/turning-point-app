@@ -40,6 +40,16 @@ st.write(f"MAILBLAZE_API_KEY: {mask(mb_key)}")
 st.write(f"MAILBLAZE_BASE: {mask(mb_base)}")
 st.write(f"SENDER_EMAIL: {mask(sender)}")
 
+# Show additional sender env variants and what the email helper resolves
+try:
+    from utils.email import _get_sender
+    resolved = _get_sender()
+except Exception:
+    resolved = None
+st.write(f"sender_email (env): {mask(os.getenv('sender_email'))}")
+st.write(f"email_from (env): {mask(os.getenv('email_from'))}")
+st.write(f"Resolved sender from helper: {mask(resolved)}")
+
 if st.button("Check Mailblaze connectivity"):
     if not mb_base:
         st.error('Missing Mailblaze base URL (MAILBLAZE_BASE or mailblaze_http)')
