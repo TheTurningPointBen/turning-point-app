@@ -151,3 +151,17 @@ def send_email(to_email: str, subject: str, body: str, html: str | None = None) 
             except Exception as se:
                 return {"error": f"SMTP error: {repr(e)}; SendGrid error: {repr(se)}"}
         return {"error": repr(e)}
+
+
+# Backwards compatibility: some deployed pages may still import `send_mailgun_email`.
+def send_mailgun_email(to_email: str, subject: str, text: str | None = None, html: str | None = None) -> dict:
+    """Compatibility wrapper: route old Mailgun calls to SMTP `send_email`.
+
+    Accepts `text` and `html` like the old helper and forwards to `send_email`.
+    """
+    # Prefer html if provided, otherwise use text as plain body
+    body = text or ""
+    try:
+        return send_email(to_email, subject, body, html=html)
+    except Exception as e:
+        return {"error": repr(e)}
