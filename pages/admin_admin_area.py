@@ -54,8 +54,13 @@ with st.expander('Mailblaze Debug'):
     # Mailblaze send test
     try:
         default_from = _get_sender() or os.getenv('SMTP_USER')
-        # Default test recipient set to ben@youthrive.co.za per admin request
-        mb_recipient = st.text_input('Mailblaze test recipient', value=os.getenv('MB_TEST_RECIPIENT', 'ben@youthrive.co.za'), key='mb_test_recipient')
+        # Default test recipient set to ben@youthrive.co.za per admin request.
+        # Preserve explicit user edits across the Streamlit session, but if the
+        # session key is missing (first load) initialise it to the desired default.
+        default_recipient = os.getenv('MB_TEST_RECIPIENT', 'ben@youthrive.co.za')
+        if 'mb_test_recipient' not in st.session_state:
+            st.session_state['mb_test_recipient'] = default_recipient
+        mb_recipient = st.text_input('Mailblaze test recipient', value=st.session_state.get('mb_test_recipient'), key='mb_test_recipient')
         mb_subject = st.text_input('Mailblaze test subject', value='Turning Point — Mailblaze test', key='mb_test_subject')
         mb_body = st.text_area('Mailblaze test body (plain text)', value='This is a Mailblaze test email from Turning Point Admin.', key='mb_test_body')
         if st.button('Send test via Mailblaze', key='mb_send_test'):
