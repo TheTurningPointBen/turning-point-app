@@ -74,25 +74,38 @@ def _send_via_mailblaze(to_addr: str, subject: str, body: str, html: Optional[st
     if html:
         payload["content"].append({"type": "text/html", "value": html})
 
-    headers = {"Authorization": f"Bearer {mb_key}", "Content-Type": "application/json"}
-    endpoints = [f"{base}/mail/send", f"{base}/v1/mail/send", f"{base}/v1/send", f"{base}/send"]
+    # Try common endpoints, including the transactional endpoint used by Mailblaze
+    endpoints = [
+        f"{base}/mail/send",
+        f"{base}/v1/mail/send",
+        f"{base}/v1/send",
+        f"{base}/send",
+        f"{base}/transactional",
+    ]
+
+    # Try both header styles: Bearer token and raw `authorization` (some Mailblaze
+    # integrations accept the bare key in a lowercase header).
+    header_variants = [
+        {"Authorization": f"Bearer {mb_key}", "Content-Type": "application/json"},
+        {"authorization": mb_key, "Content-Type": "application/json"},
+    ]
 
     last_err = None
-    for ep in endpoints:
-        try:
-            r = requests.post(ep, data=json.dumps(payload), headers=headers, timeout=10)
+    for headers in header_variants:
+        for ep in endpoints:
             try:
-                resp_json = r.json()
-            except Exception:
-                resp_json = {"text": r.text}
+                r = requests.post(ep, data=json.dumps(payload), headers=headers, timeout=10)
+                try:
+                    resp_json = r.json()
+                except Exception:
+                    resp_json = {"text": r.text}
 
-            if r.status_code in (200, 202):
-                # Return provider response to surface email_uid and other metadata
-                return {"ok": True, "provider": "mailblaze", "status_code": r.status_code, "response": resp_json}
+                if r.status_code in (200, 201, 202):
+                    return {"ok": True, "provider": "mailblaze", "status_code": r.status_code, "response": resp_json}
 
-            last_err = f"{ep} -> {r.status_code} {r.text}"
-        except Exception as e:
-            last_err = repr(e)
+                last_err = f"{ep} -> {r.status_code} {r.text}"
+            except Exception as e:
+                last_err = repr(e)
     return {"error": f"mailblaze: {last_err}"}
 
 
