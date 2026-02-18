@@ -34,18 +34,17 @@ with st.expander('Mailblaze Debug'):
         or os.getenv('MAILBLAZE_APIKEY')
     )
 
-    st.write('Mailblaze base URL configured:', bool(base_default))
     st.write('Mailblaze API key present:', bool(mb_key))
 
-            if st.button('Check Mailblaze connectivity'):
+    if st.button('Check Mailblaze connectivity'):
         if not base_default:
             st.error('Missing Mailblaze base URL (MAILBLAZE_BASE or mailblaze_http)')
         else:
             st.info(f'Attempting HTTPS GET to {base_default} (5s timeout)')
             try:
-                        headers = {"Authorization": f"Bearer {mb_key}"} if mb_key else {}
-                        r = requests.get(base_default, headers=headers, timeout=5)
-                        st.write(f'Status: {r.status_code}')
+                headers = {"Authorization": f"Bearer {mb_key}"} if mb_key else {}
+                r = requests.get(base_default, headers=headers, timeout=5)
+                st.write(f'Status: {r.status_code}')
                 if r.status_code < 400:
                     st.success('Connectivity to Mailblaze base URL succeeded')
                 else:
