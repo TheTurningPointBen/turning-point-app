@@ -125,17 +125,17 @@ def _send_via_mailblaze(to_addr: str, subject: str, body: str, html: Optional[st
     for ep in endpoints:
         try:
             r = requests.post(ep, data=tx_payload, headers=headers, timeout=10)
-                try:
-                    resp_json = r.json()
-                except Exception:
-                    resp_json = {"text": r.text}
+            try:
+                resp_json = r.json()
+            except Exception:
+                resp_json = {"text": r.text}
 
-                if r.status_code in (200, 201, 202):
-                    return {"ok": True, "provider": "mailblaze", "status_code": r.status_code, "response": resp_json}
+            if r.status_code in (200, 201, 202):
+                return {"ok": True, "provider": "mailblaze", "status_code": r.status_code, "response": resp_json}
 
-                last_err = f"{ep} -> {r.status_code} {r.text}"
-            except Exception as e:
-                last_err = repr(e)
+            last_err = f"{ep} -> {r.status_code} {r.text}"
+        except Exception as e:
+            last_err = repr(e)
     return {"error": f"mailblaze: {last_err}"}
 
 
