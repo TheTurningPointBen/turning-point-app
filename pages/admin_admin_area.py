@@ -6,6 +6,7 @@ from utils.email import send_admin_email, send_email, _get_sender
 from utils.session import delete_auth_user, set_auth_user_password, get_supabase_service, get_supabase
 from datetime import date, datetime, time, timedelta
 import json
+import base64
 import requests
 
 hide_sidebar()
@@ -69,21 +70,30 @@ with st.expander('Mailblaze Debug'):
             elif not default_from:
                 st.error('SENDER_EMAIL or EMAIL_FROM is not configured')
             else:
+                try:
+                    encoded_body = base64.b64encode(mb_body.encode("utf-8")).decode("utf-8")
+                except Exception:
+                    encoded_body = mb_body
+
                 payload = {
-                    "personalizations": [{"to": [{"email": mb_recipient}]}],
-                    "from": {"email": default_from},
+                    "to_email": mb_recipient,
+                    "to_name": None,
+                    "from_email": default_from,
+                    "from_name": os.getenv('MAILBLAZE_FROM_NAME') or os.getenv('EMAIL_FROM_NAME') or None,
                     "subject": mb_subject,
-                    "content": [{"type": "text/plain", "value": mb_body}],
+                    "body": encoded_body,
+                    "plain_text": encoded_body,
                 }
-                headers = {"Authorization": f"Bearer {mb_key}", "Content-Type": "application/json"}
+
+                headers = {"authorization": mb_key, "Content-Type": "application/x-www-form-urlencoded"}
                 base = os.getenv('MAILBLAZE_BASE') or os.getenv('MAILBLAZE_BASE_URL') or os.getenv('mailblaze_http') or 'https://control.mailblaze.com/api'
-                endpoints = [f"{base}/mail/send", f"{base}/v1/mail/send", f"{base}/v1/send", f"{base}/send"]
+                endpoints = [f"{base.rstrip('/')}/transactional"]
                 results = []
                 for ep in endpoints:
                     try:
-                        r = requests.post(ep, data=json.dumps(payload), headers=headers, timeout=10)
+                        r = requests.post(ep, data=payload, headers=headers, timeout=10)
                         results.append((ep, r.status_code, r.text))
-                        if r.status_code in (200, 202):
+                        if r.status_code in (200, 201, 202):
                             st.success(f'Mailblaze test send accepted via {ep}')
                             break
                     except Exception as e:
