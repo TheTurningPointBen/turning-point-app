@@ -120,16 +120,11 @@ def _send_via_mailblaze(to_addr: str, subject: str, body: str, html: Optional[st
 
     # Prefer the transactional endpoint first and use the raw `authorization` header
     endpoints = [f"{base.rstrip('/')}/transactional", f"{base.rstrip('/')}/v1/send", f"{base.rstrip('/')}/send"]
-    header_variants = [
-        {"authorization": mb_key, "Content-Type": "application/x-www-form-urlencoded"},
-        {"Authorization": f"Bearer {mb_key}", "Content-Type": "application/x-www-form-urlencoded"},
-    ]
-
+    headers = {"authorization": mb_key, "Content-Type": "application/x-www-form-urlencoded"}
     last_err = None
-    for headers in header_variants:
-        for ep in endpoints:
-            try:
-                r = requests.post(ep, data=tx_payload, headers=headers, timeout=10)
+    for ep in endpoints:
+        try:
+            r = requests.post(ep, data=tx_payload, headers=headers, timeout=10)
                 try:
                     resp_json = r.json()
                 except Exception:
