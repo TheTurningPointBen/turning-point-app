@@ -98,28 +98,38 @@ def _send_via_mailblaze(to_addr: str, subject: str, body: str, html: Optional[st
     }
     if html:
         payload["content"].append({"type": "text/html", "value": html})
+    # Prepare transactional-style payload: Mailblaze transactional endpoint expects
+    # form-encoded fields and the HTML `body` must be base64-encoded (or use template_id).
+    try:
+        import base64 as _b64
+        encoded_html = _b64.b64encode((html or "").encode("utf-8")).decode("utf-8") if html else None
+        encoded_plain = _b64.b64encode((body or "").encode("utf-8")).decode("utf-8")
+    except Exception:
+        encoded_html = None
+        encoded_plain = body or ""
 
-    # Try common endpoints, including the transactional endpoint used by Mailblaze
-    endpoints = [
-        f"{base}/mail/send",
-        f"{base}/v1/mail/send",
-        f"{base}/v1/send",
-        f"{base}/send",
-        f"{base}/transactional",
-    ]
+    tx_payload = {
+        "to_email": to_addr,
+        "to_name": None,
+        "from_email": sender,
+        "from_name": os.getenv("MAILBLAZE_FROM_NAME") or os.getenv("EMAIL_FROM_NAME") or None,
+        "subject": subject,
+        "body": encoded_html or encoded_plain,
+        "plain_text": encoded_plain,
+    }
 
-    # Try both header styles: Bearer token and raw `authorization` (some Mailblaze
-    # integrations accept the bare key in a lowercase header).
+    # Prefer the transactional endpoint first and use the raw `authorization` header
+    endpoints = [f"{base.rstrip('/')}/transactional", f"{base.rstrip('/')}/v1/send", f"{base.rstrip('/')}/send"]
     header_variants = [
-        {"Authorization": f"Bearer {mb_key}", "Content-Type": "application/json"},
-        {"authorization": mb_key, "Content-Type": "application/json"},
+        {"authorization": mb_key, "Content-Type": "application/x-www-form-urlencoded"},
+        {"Authorization": f"Bearer {mb_key}", "Content-Type": "application/x-www-form-urlencoded"},
     ]
 
     last_err = None
     for headers in header_variants:
         for ep in endpoints:
             try:
-                r = requests.post(ep, data=json.dumps(payload), headers=headers, timeout=10)
+                r = requests.post(ep, data=tx_payload, headers=headers, timeout=10)
                 try:
                     resp_json = r.json()
                 except Exception:

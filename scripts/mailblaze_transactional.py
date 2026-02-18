@@ -78,22 +78,19 @@ def send_mailblaze_email(
         "from_name": from_name,
         "subject": subject,
         "body": encoded_body,
-        # Mailblaze transactional endpoint in this integration expects base64-encoded
-        # strings for both the HTML body and the plain text. Encode plain_text too.
+        # Mailblaze transactional endpoint expects base64-encoded plain_text too
         "plain_text": base64.b64encode("Please view this email in HTML format.".encode("utf-8")).decode("utf-8"),
     }
 
-    # Mailblaze examples sometimes show a bare API key header; others use Bearer.
-    # Support both: the `use_raw_auth` flag selects the raw `authorization` header
-    # (matching your snippet) when True, otherwise use `Bearer <key>` form.
+    # Use raw authorization header and form-encoded content type for transactional
     if use_raw_auth:
-        headers = {"authorization": api_key, "Content-Type": "application/json"}
+        headers = {"authorization": api_key, "Content-Type": "application/x-www-form-urlencoded"}
     else:
-        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+        headers = {"authorization": api_key, "Content-Type": "application/x-www-form-urlencoded"}
 
     url = f"{base.rstrip('/')}/transactional"
 
-    r = requests.post(url, json=payload, headers=headers, timeout=15)
+    r = requests.post(url, data=payload, headers=headers, timeout=15)
 
     try:
         body_json = r.json()
