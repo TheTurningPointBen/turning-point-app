@@ -82,11 +82,8 @@ def send_mailblaze_email(
         "plain_text": base64.b64encode("Please view this email in HTML format.".encode("utf-8")).decode("utf-8"),
     }
 
-    # Use raw authorization header and form-encoded content type for transactional
-    if use_raw_auth:
-        headers = {"authorization": api_key, "Content-Type": "application/x-www-form-urlencoded"}
-    else:
-        headers = {"authorization": api_key, "Content-Type": "application/x-www-form-urlencoded"}
+    # Use Authorization: Bearer <key> and form-encoded content type for transactional
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/x-www-form-urlencoded"}
 
     url = f"{base.rstrip('/')}/transactional"
 

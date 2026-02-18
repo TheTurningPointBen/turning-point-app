@@ -120,8 +120,9 @@ def _send_via_mailblaze(to_addr: str, subject: str, body: str, html: Optional[st
     }
 
     # Prefer the transactional endpoint first and use the raw `authorization` header
-    endpoints = [f"{base.rstrip('/')}/transactional", f"{base.rstrip('/')}/v1/send", f"{base.rstrip('/')}/send"]
-    headers = {"authorization": mb_key, "Content-Type": "application/x-www-form-urlencoded"}
+    # Call only the transactional endpoint and send a standard Authorization Bearer header
+    endpoints = [f"{base.rstrip('/')}/transactional"]
+    headers = {"Authorization": f"Bearer {mb_key}", "Content-Type": "application/x-www-form-urlencoded"}
     last_err = None
     for ep in endpoints:
         try:

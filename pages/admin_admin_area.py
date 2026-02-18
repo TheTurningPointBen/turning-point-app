@@ -37,14 +37,15 @@ with st.expander('Mailblaze Debug'):
     st.write('Mailblaze base URL configured:', bool(base_default))
     st.write('Mailblaze API key present:', bool(mb_key))
 
-    if st.button('Check Mailblaze connectivity'):
+            if st.button('Check Mailblaze connectivity'):
         if not base_default:
             st.error('Missing Mailblaze base URL (MAILBLAZE_BASE or mailblaze_http)')
         else:
             st.info(f'Attempting HTTPS GET to {base_default} (5s timeout)')
             try:
-                r = requests.get(base_default, timeout=5)
-                st.write(f'Status: {r.status_code}')
+                        headers = {"Authorization": f"Bearer {mb_key}"} if mb_key else {}
+                        r = requests.get(base_default, headers=headers, timeout=5)
+                        st.write(f'Status: {r.status_code}')
                 if r.status_code < 400:
                     st.success('Connectivity to Mailblaze base URL succeeded')
                 else:
@@ -85,7 +86,7 @@ with st.expander('Mailblaze Debug'):
                     "plain_text": encoded_body,
                 }
 
-                headers = {"authorization": mb_key, "Content-Type": "application/x-www-form-urlencoded"}
+                headers = {"Authorization": f"Bearer {mb_key}", "Content-Type": "application/x-www-form-urlencoded"}
                 base = os.getenv('MAILBLAZE_BASE') or os.getenv('MAILBLAZE_BASE_URL') or os.getenv('mailblaze_http') or 'https://control.mailblaze.com/api'
                 endpoints = [f"{base.rstrip('/')}/transactional"]
                 results = []

@@ -57,7 +57,7 @@ if st.button("Check Mailblaze connectivity"):
     else:
         st.info(f'Attempting HTTPS GET to {mb_base} (5s timeout)')
         try:
-            headers = {"authorization": mb_key} if mb_key else {}
+            headers = {"Authorization": f"Bearer {mb_key}"} if mb_key else {}
             r = requests.get(mb_base, headers=headers, timeout=5)
             st.write(f'Status: {r.status_code}')
             if r.status_code < 400:
@@ -95,7 +95,7 @@ try:
                 "plain_text": encoded_body,
             }
 
-            headers = {"authorization": mb_key, "Content-Type": "application/x-www-form-urlencoded"}
+            headers = {"Authorization": f"Bearer {mb_key}", "Content-Type": "application/x-www-form-urlencoded"}
             base = mb_base
             endpoints = [f"{base.rstrip('/')}/transactional"]
             results = []
