@@ -102,6 +102,7 @@ def _send_via_mailblaze(to_addr: str, subject: str, body: str, html: Optional[st
     # form-encoded fields and the HTML `body` must be base64-encoded (or use template_id).
     try:
         import base64 as _b64
+
         encoded_html = _b64.b64encode((html or "").encode("utf-8")).decode("utf-8") if html else None
         encoded_plain = _b64.b64encode((body or "").encode("utf-8")).decode("utf-8")
     except Exception:
@@ -163,4 +164,3 @@ def send_admin_email(subject: str, body: str, admin_email: Optional[str] = None)
     if not admin:
         return {"error": "no-admin-email"}
     return send_email(admin, subject, body)
-
