@@ -8,6 +8,8 @@ from typing import Optional, Dict
 import os
 import json
 import re
+from urllib.parse import urlparse, urlunparse
+
 import requests
 
 
@@ -60,6 +62,29 @@ def _send_via_mailblaze(to_addr: str, subject: str, body: str, html: Optional[st
         or os.getenv("MAILBLAZE_BASEURL")
         or "https://control.mailblaze.com/api"
     )
+
+    # Allow Railway or other deploys to set an explicit port via env var.
+    # If MAILBLAZE_PORT is set and the base URL doesn't already include a port,
+    # append it while preserving scheme and path.
+    mb_port = os.getenv("MAILBLAZE_PORT") or os.getenv("Mailblaze_Port")
+    if mb_port:
+        try:
+            parsed = urlparse(base)
+            # If netloc already contains a port, leave it.
+            if parsed.port is None:
+                host = parsed.hostname or parsed.netloc
+                if parsed.username and parsed.password:
+                    userinfo = f"{parsed.username}:{parsed.password}@"
+                elif parsed.username:
+                    userinfo = f"{parsed.username}@"
+                else:
+                    userinfo = ""
+                new_netloc = f"{userinfo}{host}:{mb_port}"
+                parsed = parsed._replace(netloc=new_netloc)
+                base = urlunparse(parsed)
+        except Exception:
+            # If parsing fails, fall back to the original base unchanged.
+            pass
 
     sender = _get_sender()
     if not sender:

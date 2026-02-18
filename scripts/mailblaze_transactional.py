@@ -16,6 +16,7 @@ import json
 import os
 import sys
 from typing import Optional
+from urllib.parse import urlparse, urlunparse
 
 import requests
 
@@ -44,6 +45,24 @@ def send_mailblaze_email(
         raise MailblazeError("Missing MAILBLAZE_API_KEY environment variable")
 
     base = base_url or os.getenv("MAILBLAZE_BASE_URL") or os.getenv("MAILBLAZE_BASE") or "https://control.mailblaze.com/api"
+
+    # Respect optional MAILBLAZE_PORT env var if set (Railway may provide variant).
+    mb_port = os.getenv("MAILBLAZE_PORT") or os.getenv("Mailblaze_Port")
+    if mb_port:
+        try:
+            parsed = urlparse(base)
+            if parsed.port is None:
+                host = parsed.hostname or parsed.netloc
+                userinfo = ""
+                if parsed.username and parsed.password:
+                    userinfo = f"{parsed.username}:{parsed.password}@"
+                elif parsed.username:
+                    userinfo = f"{parsed.username}@"
+                new_netloc = f"{userinfo}{host}:{mb_port}"
+                parsed = parsed._replace(netloc=new_netloc)
+                base = urlunparse(parsed)
+        except Exception:
+            pass
 
     from_email = os.getenv("EMAIL_FROM")
     from_name = os.getenv("EMAIL_FROM_NAME") or os.getenv("EMAIL_FROM")
