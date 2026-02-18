@@ -57,7 +57,7 @@ if st.button("Check Mailblaze connectivity"):
     else:
         st.info(f'Attempting HTTPS GET to {mb_base} (5s timeout)')
         try:
-            headers = {"Authorization": f"Bearer {mb_key}"} if mb_key else {}
+            headers = {"authorization": mb_key} if mb_key else {}
             r = requests.get(mb_base, headers=headers, timeout=5)
             st.write(f'Status: {r.status_code}')
             if r.status_code < 400:
