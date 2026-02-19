@@ -80,15 +80,17 @@ try:
         elif not default_from:
             st.error('SENDER_EMAIL or EMAIL_FROM is not configured')
         else:
-            # Build transactional-style payload: base64-encode HTML/plain body
-            # Build minimal JSON transactional payload (no base64)
+            encoded_body = base64.b64encode(mb_body.encode('utf-8')).decode('utf-8')
+            encoded_plain = base64.b64encode(mb_body.encode('utf-8')).decode('utf-8')
+
             payload = {
                 "to_email": mb_recipient,
                 "to_name": None,
                 "from_email": default_from,
                 "from_name": os.getenv("MAILBLAZE_FROM_NAME") or os.getenv("EMAIL_FROM_NAME") or None,
                 "subject": mb_subject,
-                "plain_text": mb_body,
+                "body": encoded_body,
+                "plain_text": encoded_plain,
             }
 
             headers = {"Authorization": mb_key, "Content-Type": "application/json"}
