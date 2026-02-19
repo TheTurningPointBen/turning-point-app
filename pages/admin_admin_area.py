@@ -70,28 +70,23 @@ with st.expander('Mailblaze Debug'):
             elif not default_from:
                 st.error('SENDER_EMAIL or EMAIL_FROM is not configured')
             else:
-                try:
-                    encoded_body = base64.b64encode(mb_body.encode("utf-8")).decode("utf-8")
-                except Exception:
-                    encoded_body = mb_body
-
+                # Build minimal JSON transactional payload (no base64)
                 payload = {
                     "to_email": mb_recipient,
                     "to_name": None,
                     "from_email": default_from,
                     "from_name": os.getenv('MAILBLAZE_FROM_NAME') or os.getenv('EMAIL_FROM_NAME') or None,
                     "subject": mb_subject,
-                    "body": encoded_body,
-                    "plain_text": encoded_body,
+                    "plain_text": mb_body,
                 }
 
-                headers = {"Authorization": f"Bearer {mb_key}", "Content-Type": "application/x-www-form-urlencoded"}
+                headers = {"Authorization": mb_key, "Content-Type": "application/json"}
                 base = os.getenv('MAILBLAZE_BASE') or os.getenv('MAILBLAZE_BASE_URL') or os.getenv('mailblaze_http') or 'https://control.mailblaze.com/api'
                 endpoints = [f"{base.rstrip('/')}/transactional"]
                 results = []
                 for ep in endpoints:
                     try:
-                        r = requests.post(ep, data=payload, headers=headers, timeout=10)
+                        r = requests.post(ep, json=payload, headers=headers, timeout=10)
                         results.append((ep, r.status_code, r.text))
                         if r.status_code in (200, 201, 202):
                             st.success(f'Mailblaze test send accepted via {ep}')

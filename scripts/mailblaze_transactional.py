@@ -69,25 +69,21 @@ def send_mailblaze_email(
     if not from_email:
         raise MailblazeError("Missing EMAIL_FROM environment variable (sender address)")
 
-    encoded_body = base64.b64encode(html_body.encode("utf-8")).decode("utf-8")
-
+    # Send a minimal JSON transactional payload (no base64)
     payload = {
         "to_email": to_email,
         "to_name": to_name,
         "from_email": from_email,
         "from_name": from_name,
         "subject": subject,
-        "body": encoded_body,
-        # Mailblaze transactional endpoint expects base64-encoded plain_text too
-        "plain_text": base64.b64encode("Please view this email in HTML format.".encode("utf-8")).decode("utf-8"),
+        "plain_text": html_body or "",
     }
 
-    # Use Authorization: Bearer <key> and form-encoded content type for transactional
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/x-www-form-urlencoded"}
+    headers = {"Authorization": api_key, "Content-Type": "application/json"}
 
     url = f"{base.rstrip('/')}/transactional"
 
-    r = requests.post(url, data=payload, headers=headers, timeout=15)
+    r = requests.post(url, json=payload, headers=headers, timeout=15)
 
     try:
         body_json = r.json()

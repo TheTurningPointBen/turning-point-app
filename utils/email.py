@@ -94,25 +94,6 @@ def _send_via_mailblaze(to_addr: str, subject: str, body: str, html: Optional[st
         "personalizations": [{"to": [{"email": to_addr}]}],
         "from": {"email": sender},
         "subject": subject,
-        "content": [{"type": "text/plain", "value": body or ""}],
-    }
-    if html:
-        payload["content"].append({"type": "text/html", "value": html})
-    # Prepare transactional-style payload: Mailblaze transactional endpoint expects
-    # form-encoded fields and the HTML `body` must be base64-encoded (or use template_id).
-    try:
-        import base64 as _b64
-
-        encoded_html = _b64.b64encode((html or "").encode("utf-8")).decode("utf-8") if html else None
-        encoded_plain = _b64.b64encode((body or "").encode("utf-8")).decode("utf-8")
-    except Exception:
-        encoded_html = None
-        encoded_plain = body or ""
-
-    tx_payload = {
-        "to_email": to_addr,
-        "to_name": None,
-        "from_email": sender,
         "from_name": os.getenv("MAILBLAZE_FROM_NAME") or os.getenv("EMAIL_FROM_NAME") or None,
         "subject": subject,
         "body": encoded_html or encoded_plain,
@@ -127,12 +108,12 @@ def _send_via_mailblaze(to_addr: str, subject: str, body: str, html: Optional[st
     for ep in endpoints:
         try:
             r = requests.post(ep, data=tx_payload, headers=headers, timeout=10)
-            try:
-                resp_json = r.json()
+        endpoints = [f"{base.rstrip('/')}/transactional"]
+        headers = {"Authorization": mb_key, "Content-Type": "application/json"}
             except Exception:
                 resp_json = {"text": r.text}
 
-            if r.status_code in (200, 201, 202):
+                r = requests.post(ep, json=tx_payload, headers=headers, timeout=10)
                 return {"ok": True, "provider": "mailblaze", "status_code": r.status_code, "response": resp_json}
 
             last_err = f"{ep} -> {r.status_code} {r.text}"
