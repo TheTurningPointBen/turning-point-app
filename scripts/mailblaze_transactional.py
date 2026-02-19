@@ -69,14 +69,18 @@ def send_mailblaze_email(
     if not from_email:
         raise MailblazeError("Missing EMAIL_FROM environment variable (sender address)")
 
-    # Send a minimal JSON transactional payload (no base64)
+    # Mailblaze requires base64 `body` and `plain_text` for transactional sends
+    encoded_body = base64.b64encode((html_body or "").encode("utf-8")).decode("utf-8")
+    encoded_plain = base64.b64encode((html_body or "").encode("utf-8")).decode("utf-8")
+
     payload = {
         "to_email": to_email,
         "to_name": to_name,
         "from_email": from_email,
         "from_name": from_name,
         "subject": subject,
-        "plain_text": html_body or "",
+        "body": encoded_body,
+        "plain_text": encoded_plain,
     }
 
     headers = {"Authorization": api_key, "Content-Type": "application/json"}
