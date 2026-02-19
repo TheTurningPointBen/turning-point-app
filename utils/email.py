@@ -11,6 +11,7 @@ import re
 from urllib.parse import urlparse, urlunparse
 
 import requests
+import base64
 
 
 def _get_sender() -> Optional[str]:
@@ -91,17 +92,23 @@ def _send_via_mailblaze(to_addr: str, subject: str, body: str, html: Optional[st
     if not sender:
         return {"error": "missing-sender: set SENDER_EMAIL or EMAIL_FROM"}
 
-    # Build minimal transactional JSON payload (do not base64-encode)
+    # Build minimal transactional JSON payload — only include non-empty body fields
+    encoded_body = base64.b64encode((html or body or "").encode("utf-8")).decode("utf-8")
+    encoded_plain = base64.b64encode((body or "").encode("utf-8")).decode("utf-8")
+
     tx_payload = {
         "to_email": to_addr,
         "to_name": None,
         "from_email": sender,
         "from_name": os.getenv("MAILBLAZE_FROM_NAME") or os.getenv("EMAIL_FROM_NAME") or None,
         "subject": subject,
-        "plain_text": body or "",
     }
-    if html:
-        tx_payload["body"] = html
+
+    # Mailblaze treats empty strings as missing; only send keys when non-empty
+    if encoded_body:
+        tx_payload["body"] = encoded_body
+    if encoded_plain:
+        tx_payload["plain_text"] = encoded_plain
 
     endpoints = [f"{base.rstrip('/')}/transactional"]
     headers = {"Authorization": mb_key, "Content-Type": "application/json"}
