@@ -180,7 +180,29 @@ with tab1:
                     site = os.getenv('SITE_URL') or os.getenv('APP_URL') or 'http://localhost:8501'
                     gen = generate_recovery_link(fp_email, redirect_to=site + '/password_reset')
                     if gen.get('ok') and gen.get('link'):
-                        link = gen.get('link')
+                        raw_link = gen.get('link')
+                        # Attempt to extract access_token from query or fragment so we can link directly to /password_reset
+                        try:
+                            from urllib.parse import urlparse, parse_qs
+                            p = urlparse(raw_link)
+                            token = None
+                            # check query
+                            q = parse_qs(p.query)
+                            if 'access_token' in q:
+                                token = q.get('access_token')[0]
+                            # check fragment (#access_token=...)
+                            if not token and p.fragment:
+                                fq = parse_qs(p.fragment)
+                                if 'access_token' in fq:
+                                    token = fq.get('access_token')[0]
+                        except Exception:
+                            token = None
+
+                        if token:
+                            link = site.rstrip('/') + f"/password_reset?type=recovery&access_token={token}"
+                        else:
+                            link = raw_link
+
                         subj = 'Turning Point — Password reset instructions'
                         plain = f"Follow this link to reset your password: {link}\nIf you did not request this, ignore this email."
                         html = f"<p>Follow this link to reset your password:</p><p><a href=\"{link}\">Reset password</a></p>"
