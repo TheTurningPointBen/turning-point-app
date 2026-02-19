@@ -28,7 +28,8 @@ else:
 with st.expander('Mailblaze Debug'):
     base_default = os.getenv('MAILBLAZE_BASE') or os.getenv('MAILBLAZE_BASE_URL') or os.getenv('mailblaze_http') or 'https://control.mailblaze.com/api'
     mb_key = (
-        os.getenv('MAILBLAZE_API_KEY')
+        os.getenv('API_KEY')
+        or os.getenv('MAILBLAZE_API_KEY')
         or os.getenv('MAILBLAZE_KEY')
         or os.getenv('mailblaze_api_key')
         or os.getenv('MAILBLAZE_APIKEY')

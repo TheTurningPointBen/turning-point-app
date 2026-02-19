@@ -47,7 +47,8 @@ def _send_via_mailblaze(to_addr: str, subject: str, body: str, html: Optional[st
     or `{'error': '...'}'` on failure.
     """
     mb_key = (
-        os.getenv("MAILBLAZE_API_KEY")
+        os.getenv("API_KEY")
+        or os.getenv("MAILBLAZE_API_KEY")
         or os.getenv("MAILBLAZE_KEY")
         or os.getenv("mailblaze_api_key")
         or os.getenv("MAILBLAZE_APIKEY")

@@ -40,7 +40,7 @@ def send_mailblaze_email(
     - The function encodes the HTML body as base64 (matching your example payload).
     - Returns the response json on success or raises MailblazeError on failure.
     """
-    api_key = api_key or os.getenv("MAILBLAZE_API_KEY") or os.getenv("MAILBLAZE_KEY")
+    api_key = api_key or os.getenv("API_KEY") or os.getenv("MAILBLAZE_API_KEY") or os.getenv("MAILBLAZE_KEY")
     if not api_key:
         raise MailblazeError("Missing MAILBLAZE_API_KEY environment variable")
 

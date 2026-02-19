@@ -28,7 +28,8 @@ def mask(s):
 st.markdown("This page runs simple connectivity checks for your Mailblaze HTTP API and can send a test email. It does not reveal secrets.")
 
 mb_key = (
-    os.getenv("MAILBLAZE_API_KEY")
+    os.getenv("API_KEY")
+    or os.getenv("MAILBLAZE_API_KEY")
     or os.getenv("MAILBLAZE_KEY")
     or os.getenv("mailblaze_api_key")
     or os.getenv("MAILBLAZE_APIKEY")
