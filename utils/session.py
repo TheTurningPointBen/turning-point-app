@@ -140,9 +140,10 @@ def generate_recovery_link(email: str, redirect_to: str | None = None) -> dict:
         'Authorization': f'Bearer {svc}',
         'Content-Type': 'application/json'
     }
-    body = {'type': 'recovery', 'email': email}
-    if redirect_to:
-        body['redirect_to'] = redirect_to
+    # Ensure the recovery link redirects to the app's password reset page
+    site = os.getenv('SITE_URL') or os.getenv('APP_URL') or 'http://localhost:8501'
+    final_redirect = site.rstrip('/') + '/password_reset'
+    body = {'type': 'recovery', 'email': email, 'redirect_to': final_redirect}
     try:
         resp = httpx.post(url, headers=headers, json=body, timeout=10.0)
         if resp.status_code in (200, 201):
