@@ -90,30 +90,30 @@ def _send_via_mailblaze(to_addr: str, subject: str, body: str, html: Optional[st
     if not sender:
         return {"error": "missing-sender: set SENDER_EMAIL or EMAIL_FROM"}
 
-    payload = {
-        "personalizations": [{"to": [{"email": to_addr}]}],
-        "from": {"email": sender},
-        "subject": subject,
+    # Build minimal transactional JSON payload (do not base64-encode)
+    tx_payload = {
+        "to_email": to_addr,
+        "to_name": None,
+        "from_email": sender,
         "from_name": os.getenv("MAILBLAZE_FROM_NAME") or os.getenv("EMAIL_FROM_NAME") or None,
         "subject": subject,
-        "body": encoded_html or encoded_plain,
-        "plain_text": encoded_plain,
+        "plain_text": body or "",
     }
+    if html:
+        tx_payload["body"] = html
 
-    # Prefer the transactional endpoint first and use the raw `authorization` header
-    # Call only the transactional endpoint and send a standard Authorization Bearer header
     endpoints = [f"{base.rstrip('/')}/transactional"]
-    headers = {"Authorization": f"Bearer {mb_key}", "Content-Type": "application/x-www-form-urlencoded"}
+    headers = {"Authorization": mb_key, "Content-Type": "application/json"}
     last_err = None
     for ep in endpoints:
         try:
-            r = requests.post(ep, data=tx_payload, headers=headers, timeout=10)
-        endpoints = [f"{base.rstrip('/')}/transactional"]
-        headers = {"Authorization": mb_key, "Content-Type": "application/json"}
+            r = requests.post(ep, json=tx_payload, headers=headers, timeout=10)
+            try:
+                resp_json = r.json()
             except Exception:
                 resp_json = {"text": r.text}
 
-                r = requests.post(ep, json=tx_payload, headers=headers, timeout=10)
+            if r.status_code in (200, 201, 202):
                 return {"ok": True, "provider": "mailblaze", "status_code": r.status_code, "response": resp_json}
 
             last_err = f"{ep} -> {r.status_code} {r.text}"
