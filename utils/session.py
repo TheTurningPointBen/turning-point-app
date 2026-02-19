@@ -120,3 +120,45 @@ def get_supabase_service():
         raise RuntimeError('SUPABASE_URL not configured')
     # Create a client using the service role
     return create_client(SUPABASE_URL, svc)
+
+
+def generate_recovery_link(email: str, redirect_to: str | None = None) -> dict:
+    """Generate a password recovery link via Supabase Admin API.
+
+    Requires `SUPABASE_SERVICE_ROLE` env var. Returns {'ok': True, 'link': url}
+    on success or {'error': msg} on failure.
+    """
+    svc = os.getenv('SUPABASE_SERVICE_ROLE')
+    if not svc:
+        return {'error': 'SUPABASE_SERVICE_ROLE not configured'}
+    if not SUPABASE_URL:
+        return {'error': 'SUPABASE_URL not configured'}
+
+    url = f"{SUPABASE_URL.rstrip('/')}/auth/v1/admin/generate_link"
+    headers = {
+        'apikey': svc,
+        'Authorization': f'Bearer {svc}',
+        'Content-Type': 'application/json'
+    }
+    body = {'type': 'recovery', 'email': email}
+    if redirect_to:
+        body['redirect_to'] = redirect_to
+    try:
+        resp = httpx.post(url, headers=headers, json=body, timeout=10.0)
+        if resp.status_code in (200, 201):
+            try:
+                j = resp.json()
+                # Supabase may return {'link': '...'} or similar; attempt common keys
+                link = j.get('link') or j.get('url') or j.get('action_link') or j.get('generated_link')
+                if link:
+                    return {'ok': True, 'link': link, 'response': j}
+                return {'ok': True, 'response': j}
+            except Exception:
+                return {'ok': True, 'text': resp.text}
+        else:
+            try:
+                return {'error': resp.json()}
+            except Exception:
+                return {'error': f'Status {resp.status_code}: {resp.text}'}
+    except Exception as e:
+        return {'error': str(e)}

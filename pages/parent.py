@@ -173,20 +173,26 @@ with tab1:
                 st.error("Please enter your email.")
             else:
                 try:
-                    try:
-                        res = supabase.auth.reset_password_for_email(fp_email)
-                    except Exception:
-                        try:
-                            res = supabase.auth.api.reset_password_for_email(fp_email)
-                        except Exception:
-                            res = None
+                    from utils.session import generate_recovery_link
+                    from utils.email import send_email
+                    import os
 
-                    if res is None:
-                        st.warning("Password reset request could not be sent — please contact support.")
+                    site = os.getenv('SITE_URL') or os.getenv('APP_URL') or 'http://localhost:8501'
+                    gen = generate_recovery_link(fp_email, redirect_to=site + '/password_reset')
+                    if gen.get('ok') and gen.get('link'):
+                        link = gen.get('link')
+                        subj = 'Turning Point — Password reset instructions'
+                        plain = f"Follow this link to reset your password: {link}\nIf you did not request this, ignore this email."
+                        html = f"<p>Follow this link to reset your password:</p><p><a href=\"{link}\">Reset password</a></p>"
+                        send_res = send_email(fp_email, subj, body=plain, html=html)
+                        if send_res.get('ok'):
+                            st.success('If that email exists, password reset instructions have been sent.')
+                        else:
+                            st.warning('Password reset request could not be sent — please contact support.')
                     else:
-                        st.success("If that email exists, password reset instructions have been sent.")
+                        st.warning('Password reset request could not be sent — please contact support.')
                 except Exception as e:
-                    st.error("Failed to request password reset. Please try again later.")
+                    st.error('Failed to request password reset. Please try again later.')
                     try:
                         st.exception(e)
                     except Exception:
