@@ -6,7 +6,7 @@ hide_sidebar()
 from datetime import datetime, timedelta
 from utils.database import supabase
 from utils.email import send_email, send_admin_email
-from utils.session import restore_session_from_refresh
+from utils.session import restore_session_from_refresh, set_auth_user_password
 
 # If a one-time refresh token was pushed into the URL (tp_rt), try restoring session
 try:
@@ -186,6 +186,43 @@ with tab1:
 if not st.session_state.get("authenticated") or st.session_state.get("role") != "admin":
     # Authentication required — stop rendering further admin content.
     st.stop()
+
+# --- ADMIN PASSWORD RESET TOOL ---
+with st.expander("Reset parent/tutor password (admin)"):
+    st.write("Use this tool to set a new password for a parent or tutor account via the Supabase Admin API.")
+    pr_role = st.selectbox("Role", ["Parent", "Tutor"], help="Which user table to lookup")
+    pr_email = st.text_input("Account email", key="admin_reset_email")
+    pr_pw = st.text_input("New password", type="password", key="admin_reset_pw")
+    pr_pw2 = st.text_input("Confirm new password", type="password", key="admin_reset_pw2")
+    if st.button("Reset password", key="admin_reset_submit"):
+        if not pr_email:
+            st.error("Please enter an account email.")
+        elif not pr_pw or pr_pw != pr_pw2:
+            st.error("Passwords must match and not be empty.")
+        else:
+            try:
+                # Lookup user_id from the appropriate table
+                tbl = 'parents' if pr_role == 'Parent' else 'tutors'
+                q = supabase.table(tbl).select('user_id,email').eq('email', pr_email).execute()
+                rows = getattr(q, 'data', None) or []
+                user_id = None
+                if rows and len(rows) > 0:
+                    user_id = rows[0].get('user_id')
+
+                if not user_id:
+                    st.error('Could not find a linked auth user_id for that email. Ensure the account exists and is linked to the parents/tutors table.')
+                else:
+                    res = set_auth_user_password(user_id, pr_pw)
+                    if res.get('ok'):
+                        st.success('Password updated successfully.')
+                    else:
+                        st.error(f"Failed to update password: {res}")
+            except Exception as e:
+                st.error('Exception while resetting password; see details below.')
+                try:
+                    st.exception(e)
+                except Exception:
+                    pass
 
 # --- FETCH PENDING BOOKINGS ---
 st.header("Pending Bookings")
