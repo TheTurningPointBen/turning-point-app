@@ -149,13 +149,56 @@ def generate_recovery_link(email: str, redirect_to: str | None = None) -> dict:
         if resp.status_code in (200, 201):
             try:
                 j = resp.json()
-                # Supabase may return {'link': '...'} or similar; attempt common keys
-                link = j.get('link') or j.get('url') or j.get('action_link') or j.get('generated_link')
-                if link:
-                    return {'ok': True, 'link': link, 'response': j}
-                return {'ok': True, 'response': j}
             except Exception:
-                return {'ok': True, 'text': resp.text}
+                j = None
+
+            # Attempt to extract any returned link-like fields
+            link = None
+            if isinstance(j, dict):
+                link = j.get('link') or j.get('url') or j.get('action_link') or j.get('generated_link')
+
+            text = resp.text or ''
+            # If we didn't find a link in JSON, attempt to find tokens or links in the raw text
+            if not link:
+                import re
+                m = re.search(r"(https?://[^\s'\"]+)", text)
+                if m:
+                    link = m.group(1)
+
+            # Try to extract an access_token from either JSON values or the response text
+            token = None
+            try:
+                import re
+                if isinstance(j, dict):
+                    # search all string values
+                    for v in j.values():
+                        if isinstance(v, str):
+                            mm = re.search(r"access_token=([A-Za-z0-9_\-\.]+)", v)
+                            if mm:
+                                token = mm.group(1)
+                                break
+                if not token:
+                    mm = re.search(r"access_token=([A-Za-z0-9_\-\.]+)", text)
+                    if mm:
+                        token = mm.group(1)
+            except Exception:
+                token = None
+
+            site = os.getenv('SITE_URL') or os.getenv('APP_URL') or 'http://localhost:8501'
+            direct = None
+            if token:
+                direct = site.rstrip('/') + f"/password_reset?type=recovery&access_token={token}"
+
+            out = {'ok': True}
+            if link:
+                out['link'] = link
+            if direct:
+                out['direct_link'] = direct
+            if j:
+                out['response'] = j
+            else:
+                out['text'] = text
+            return out
         else:
             try:
                 return {'error': resp.json()}

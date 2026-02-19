@@ -179,8 +179,8 @@ with tab1:
 
                     site = os.getenv('SITE_URL') or os.getenv('APP_URL') or 'http://localhost:8501'
                     gen = generate_recovery_link(fp_email, redirect_to=site + '/password_reset')
-                    if gen.get('ok') and gen.get('link'):
-                        raw_link = gen.get('link')
+                    if gen.get('ok'):
+                        raw_link = gen.get('direct_link') or gen.get('link')
                         # Attempt to extract access_token from query or fragment so we can link directly to /password_reset
                         try:
                             from urllib.parse import urlparse, parse_qs
