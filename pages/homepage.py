@@ -17,14 +17,19 @@ qp_from = (qp.get('from_fragment') or [None])[0]
 qp_target = (qp.get('target') or [None])[0]
 if qp_type == 'recovery' and qp_token and qp_from == '1' and qp_target == 'password_reset':
     try:
+        # Best-effort: clear query params so token isn't visible in URL
         try:
             st.experimental_set_query_params()
         except Exception:
             pass
+
+        # Prefer Streamlit's page switch when available
         try:
             st.switch_page("pages/password_reset.py")
             st.stop()
         except Exception:
+            # Fallback: run the password_reset page server-side to avoid
+            # rendering the homepage and overriding the flow.
             try:
                 base_dir = os.path.dirname(__file__)
                 candidate = os.path.join(base_dir, 'password_reset.py')
@@ -36,8 +41,8 @@ if qp_type == 'recovery' and qp_token and qp_from == '1' and qp_target == 'passw
                         pass
             except Exception:
                 pass
-except Exception:
-    pass
+    except Exception:
+        pass
 
 hide_sidebar()
 
