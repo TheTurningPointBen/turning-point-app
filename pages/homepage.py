@@ -72,6 +72,11 @@ qp_target = (qp.get('target') or [None])[0]
 # available. Otherwise fall back to the previous behavior.
 if qp_type == 'recovery' and qp_token:
     if qp_from == '1' and qp_target == 'password_reset':
+        # Handle fragment-originated recovery links deterministically:
+        # 1) attempt to clear query params (best-effort),
+        # 2) prefer st.switch_page, and
+        # 3) fallback to server-side run of the password_reset page so
+        #    the homepage does not override the flow.
         try:
             try:
                 st.experimental_set_query_params()
@@ -81,8 +86,20 @@ if qp_type == 'recovery' and qp_token:
                 st.switch_page("pages/password_reset.py")
                 st.stop()
             except Exception:
-                # If switch_page is not available, keep inline flow below
-                pass
+                # Fallback: run the password_reset page directly so we avoid
+                # the homepage rendering and any later redirects.
+                try:
+                    import runpy, os
+                    base_dir = os.path.dirname(__file__)
+                    candidate = os.path.join(base_dir, 'password_reset.py')
+                    if os.path.isfile(candidate):
+                        runpy.run_path(candidate, run_name='__main__')
+                        try:
+                            st.stop()
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
         except Exception:
             pass
     else:
