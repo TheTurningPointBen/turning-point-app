@@ -30,19 +30,21 @@ try:
                         const params = new URLSearchParams(hash.slice(1));
                         const type = params.get("type");
                         const access_token = params.get("access_token") || params.get("token") || params.get("token_hash");
-                                if (type === "recovery" && access_token) {
-                            // Build a destination to the dedicated password_reset page so
-                            // the recovery UI handles the token server-side.
-                            const q = new URLSearchParams(window.location.search);
-                            q.set("type", type);
-                            q.set("access_token", access_token);
-                            q.set("from_fragment", "1");
-                            const newUrl = window.location.origin + '/password_reset' + "?" + q.toString();
-                            console.log('TP: redirecting fragment to password_reset', {newUrl});
-                            // Add a tiny DOM marker so we can confirm execution visually
-                            try { document.documentElement.setAttribute('data-tp-fragment','1'); } catch(e){}
-                            // Replace location so navigation history isn't polluted with the fragment URL
-                            window.location.replace(newUrl);
+                            if (type === "recovery" && access_token) {
+                                // Merge existing query params with values from fragment and
+                                // include a target marker so server-side logic can prefer the
+                                // in-app password reset flow without changing path.
+                                const q = new URLSearchParams(window.location.search);
+                                q.set("type", type);
+                                q.set("access_token", access_token);
+                                q.set("from_fragment", "1");
+                                q.set("target", "password_reset");
+                                const newUrl = window.location.origin + window.location.pathname + "?" + q.toString();
+                                console.log('TP: merging fragment into query', {newUrl});
+                                // Add a tiny DOM marker so we can confirm execution visually
+                                try { document.documentElement.setAttribute('data-tp-fragment','1'); } catch(e){}
+                                // Replace location so navigation history isn't polluted with the fragment URL
+                                window.location.replace(newUrl);
                         }
                     } catch (e) {
                         console.error(e);
@@ -61,19 +63,41 @@ except Exception:
     qp = {}
 qp_type = (qp.get('type') or [None])[0]
 qp_token = (qp.get('access_token') or [None])[0]
+qp_from = (qp.get('from_fragment') or [None])[0]
+qp_target = (qp.get('target') or [None])[0]
+
+# If this looks like a fragment-originated recovery link (from_fragment=1)
+# and it targets the in-app password reset, clear query params and dispatch
+# to the password reset UI using Streamlit's multipage switch when
+# available. Otherwise fall back to the previous behavior.
 if qp_type == 'recovery' and qp_token:
-    # Try server-side page switch first so multipage dispatcher handles it.
-    try:
-        st.switch_page("pages/password_reset.py")
-        st.stop()
-    except Exception:
-        st.error('It looks like you followed a password recovery link. Click the button below to open the password reset form.')
+    if qp_from == '1' and qp_target == 'password_reset':
         try:
-            dest = f"/password_reset?type=recovery&access_token={qp_token}"
-            if st.button('Open password reset'):
-                st.markdown(f"<script>window.location.href='{dest}';</script>", unsafe_allow_html=True)
+            try:
+                st.experimental_set_query_params()
+            except Exception:
+                pass
+            try:
+                st.switch_page("pages/password_reset.py")
+                st.stop()
+            except Exception:
+                # If switch_page is not available, keep inline flow below
+                pass
         except Exception:
-            st.markdown(f"[Open password reset]({dest})")
+            pass
+    else:
+        # Non-fragment or older recovery links: keep previous behavior
+        try:
+            st.switch_page("pages/password_reset.py")
+            st.stop()
+        except Exception:
+            st.error('It looks like you followed a password recovery link. Click the button below to open the password reset form.')
+            try:
+                dest = f"/password_reset?type=recovery&access_token={qp_token}"
+                if st.button('Open password reset'):
+                    st.markdown(f"<script>window.location.href='{dest}';</script>", unsafe_allow_html=True)
+            except Exception:
+                st.markdown(f"[Open password reset]({dest})")
 
 col1, col2, col3 = st.columns(3)
 
