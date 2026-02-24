@@ -80,8 +80,51 @@ except Exception:
 
 # Example: show a form to set a new password, then call Supabase to complete the recovery.
 # Use access_token in whatever API call you need.
+token = access_token or st.session_state.get('tp_recovery_token')
 
-# new_password = st.text_input("New password", type="password")
-# if st.button("Reset password"):
-#     # perform reset using access_token
-#     ...
+if not token:
+    st.error('No recovery token found. Open the password recovery link from your email.')
+    st.stop()
+
+st.info('Enter a new password for your account.')
+new_pw = st.text_input('New password', type='password')
+confirm_pw = st.text_input('Confirm password', type='password')
+
+if st.button('Set new password'):
+    if not new_pw or new_pw != confirm_pw:
+        st.error('Passwords must match and not be empty.')
+    else:
+        try:
+            from config import SUPABASE_URL, SUPABASE_KEY
+            import httpx as _httpx
+
+            url = f"{SUPABASE_URL.rstrip('/')}/auth/v1/user"
+            headers = {
+                'apikey': SUPABASE_KEY,
+                'Authorization': f'Bearer {token}',
+                'Content-Type': 'application/json'
+            }
+            resp = _httpx.put(url, json={'password': new_pw}, headers=headers, timeout=10.0)
+            if resp.status_code in (200, 204):
+                st.success('Password updated. You will be redirected to the login page...')
+                # Clear token from session state
+                try:
+                    if 'tp_recovery_token' in st.session_state:
+                        del st.session_state['tp_recovery_token']
+                except Exception:
+                    pass
+                try:
+                    redirect_js = "<script>setTimeout(function(){ window.location.href='/tutor_login'; }, 1500);</script>"
+                    st.markdown(redirect_js, unsafe_allow_html=True)
+                except Exception:
+                    try:
+                        st.markdown("[Go to login](./tutor_login)")
+                    except Exception:
+                        pass
+            else:
+                try:
+                    st.error(f"Failed to update password: {resp.status_code} {resp.text}")
+                except Exception:
+                    st.error('Failed to update password. See logs for details.')
+        except Exception as e:
+            st.error(f'Error while updating password: {e}')
