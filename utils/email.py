@@ -65,7 +65,7 @@ def _send_via_mailblaze(to_addr: str, subject: str, body: str, html: Optional[st
         or "https://control.mailblaze.com/api"
     )
 
-    # Allow Railway or other deploys to set an explicit port via env var.
+    # Allow Render or other deploys to set an explicit port via env var.
     # If MAILBLAZE_PORT is set and the base URL doesn't already include a port,
     # append it while preserving scheme and path.
     mb_port = os.getenv("MAILBLAZE_PORT") or os.getenv("Mailblaze_Port")

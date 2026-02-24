@@ -46,7 +46,7 @@ def send_mailblaze_email(
 
     base = base_url or os.getenv("MAILBLAZE_BASE_URL") or os.getenv("MAILBLAZE_BASE") or "https://control.mailblaze.com/api"
 
-    # Respect optional MAILBLAZE_PORT env var if set (Railway may provide variant).
+    # Respect optional MAILBLAZE_PORT env var if set (Render may provide variant).
     mb_port = os.getenv("MAILBLAZE_PORT") or os.getenv("Mailblaze_Port")
     if mb_port:
         try:
