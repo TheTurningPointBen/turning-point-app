@@ -70,14 +70,20 @@ except Exception:
     qp_token = None
 
 if qp_type == 'recovery' and qp_token:
-    # Redirect recovery links to the dedicated password_reset page
+    # Prefer server-side page switch where available, otherwise fall back
+    # to client-side redirect so the recovery link opens the password reset
+    # UI even when query propagation is delayed.
     try:
-        # Build redirect URL preserving the token
-        redirect_url = f"/password_reset?type=recovery&access_token={qp_token}"
-        st.markdown(f"<script>window.location.href='{redirect_url}';</script>", unsafe_allow_html=True)
+        st.switch_page("pages/password_reset.py")
+        st.stop()
     except Exception:
-        st.error('Unable to redirect to password reset page. Please open the password reset link from your email.')
-    st.stop()
+        try:
+            # Build redirect URL preserving the token
+            redirect_url = f"/password_reset?type=recovery&access_token={qp_token}"
+            st.markdown(f"<script>window.location.href='{redirect_url}';</script>", unsafe_allow_html=True)
+        except Exception:
+            st.error('Unable to redirect to password reset page. Please open the password reset link from your email.')
+        st.stop()
 
 st.title("Tutor Portal")
 

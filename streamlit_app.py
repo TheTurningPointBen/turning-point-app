@@ -24,6 +24,15 @@ try:
     qp_token = (qp.get('access_token') or [None])[0]
     if qp_type == 'recovery' and qp_token:
         try:
+            # Prefer Streamlit's page switch when possible so the multipage
+            # dispatcher handles rendering. Fall back to running the page
+            # directly if `st.switch_page` isn't available in this runtime.
+            try:
+                st.switch_page("pages/password_reset.py")
+                st.stop()
+            except Exception:
+                pass
+
             # Immediately dispatch the password_reset page server-side so the
             # recovery link opens the correct UI even when client-side query
             # propagation is delayed.

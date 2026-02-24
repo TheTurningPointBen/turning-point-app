@@ -14,6 +14,25 @@ try:
 except Exception:
     params = {}
 
+# If URL contains a Supabase recovery link, dispatch to the password reset
+# page. Prefer server-side `st.switch_page` and fall back to client redirect.
+try:
+    qp_type = (params.get('type') or [None])[0]
+    qp_token = (params.get('access_token') or [None])[0]
+    if qp_type == 'recovery' and qp_token:
+        try:
+            st.switch_page("pages/password_reset.py")
+            st.stop()
+        except Exception:
+            try:
+                redirect_url = f"/password_reset?type=recovery&access_token={qp_token}"
+                st.markdown(f"<script>window.location.href='{redirect_url}';</script>", unsafe_allow_html=True)
+            except Exception:
+                st.error('Unable to redirect to password reset page. Please open the password reset link from your email.')
+            st.stop()
+except Exception:
+    pass
+
 if params.get('tp_rt'):
     token = params.get('tp_rt')[0]
     restored = None
