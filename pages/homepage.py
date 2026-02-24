@@ -1,7 +1,57 @@
 import streamlit as st
 from utils.ui import hide_sidebar
+import os
+import runpy
+
+# Server-side short-circuit: if the incoming URL already contains the
+# recovery token (e.g. ?type=recovery&access_token=...&from_fragment=1&target=password_reset)
+# dispatch to the password_reset page before rendering any UI so the
+# homepage cannot override the flow.
+try:
+    qp = st.query_params or {}
+except Exception:
+    qp = {}
+qp_type = (qp.get('type') or [None])[0]
+qp_token = (qp.get('access_token') or [None])[0]
+qp_from = (qp.get('from_fragment') or [None])[0]
+qp_target = (qp.get('target') or [None])[0]
+if qp_type == 'recovery' and qp_token and qp_from == '1' and qp_target == 'password_reset':
+    try:
+        try:
+            st.experimental_set_query_params()
+        except Exception:
+            pass
+        try:
+            st.switch_page("pages/password_reset.py")
+            st.stop()
+        except Exception:
+            try:
+                base_dir = os.path.dirname(__file__)
+                candidate = os.path.join(base_dir, 'password_reset.py')
+                if os.path.isfile(candidate):
+                    runpy.run_path(candidate, run_name='__main__')
+                    try:
+                        st.stop()
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+except Exception:
+    pass
 
 hide_sidebar()
+
+# Debugging aid: show whether query params include recovery values (no token value shown)
+try:
+    qp_dbg = {
+        'type': bool(qp.get('type')),
+        'has_token': bool(qp.get('access_token') or qp.get('token') or qp.get('token_hash')),
+        'from_fragment': qp.get('from_fragment', [None])[0],
+        'target': qp.get('target', [None])[0],
+    }
+    st.markdown(f"<div style='font-size:12px;color:#999'>DEBUG qp: {qp_dbg}</div>", unsafe_allow_html=True)
+except Exception:
+    pass
 
 try:
     st.set_page_config(page_title="Homepage")
