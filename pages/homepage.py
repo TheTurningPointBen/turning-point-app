@@ -13,6 +13,44 @@ st.markdown("Welcome to The Turning Point — choose a portal below.")
 
 # If a Supabase recovery link landed here, show a prominent link to the
 # password reset page so users can continue the flow.
+# Client-side fragment -> query string converter
+
+# Place this before any st.query_params usage so the page will reload with
+# query params that Streamlit can read server-side.
+try:
+        st.markdown(
+                """
+                <script>
+                (function() {
+                    try {
+                        const hash = window.location.hash || "";
+                        if (!hash) return;
+                        // Prevent repeated processing / infinite reload
+                        if (window.location.search.includes("from_fragment=1")) return;
+                        const params = new URLSearchParams(hash.slice(1));
+                        const type = params.get("type");
+                        const access_token = params.get("access_token") || params.get("token") || params.get("token_hash");
+                        if (type === "recovery" && access_token) {
+                            // Merge existing query params with values from fragment
+                            const q = new URLSearchParams(window.location.search);
+                            q.set("type", type);
+                            q.set("access_token", access_token);
+                            q.set("from_fragment", "1");
+                            const newUrl = window.location.origin + window.location.pathname + "?" + q.toString();
+                            // Replace location so navigation history isn't polluted with the fragment URL
+                            window.location.replace(newUrl);
+                        }
+                    } catch (e) {
+                        console.error(e);
+                    }
+                })();
+                </script>
+                """,
+                unsafe_allow_html=True,
+        )
+except Exception:
+        # If injection fails, do not block page rendering
+        pass
 try:
     qp = st.query_params or {}
 except Exception:
