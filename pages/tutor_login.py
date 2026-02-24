@@ -53,7 +53,7 @@ if params.get('tp_rt'):
         st.session_state['user'] = restored.get('user')
         st.session_state['email'] = restored.get('user', {}).get('email')
         try:
-            st.experimental_set_query_params()
+            st.query_params
         except Exception:
             pass
         try:

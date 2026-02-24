@@ -11,11 +11,11 @@ st.title("Booking")
 st.warning("This legacy Booking page has been removed. Use 'Make a Booking' from the Parent Dashboard instead.")
 
 if st.button("Go to Parent Booking"):
-    try:
-        try:
-            st.experimental_set_query_params()
-        except Exception:
-            pass
+            try:
+                try:
+                    st.query_params
+                except Exception:
+                    pass
         st.session_state.role = 'parent'
         st.switch_page("pages/parent_booking.py")
     except Exception:

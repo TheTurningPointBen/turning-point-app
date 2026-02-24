@@ -47,7 +47,7 @@ if params.get('tp_rt'):
         st.session_state['role'] = 'admin'
         st.session_state['email'] = restored.get('user', {}).get('email')
         try:
-            st.experimental_set_query_params()
+            st.query_params
         except Exception:
             pass
         try:

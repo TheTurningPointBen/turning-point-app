@@ -90,7 +90,7 @@ def safe_rerun():
     try:
         # Try to nudge Streamlit to update query params and rerun
         try:
-            st.experimental_set_query_params()
+            st.query_params
         except Exception:
             pass
         # Client-side reload fallback

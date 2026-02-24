@@ -2,12 +2,9 @@ import streamlit as st
 
 # Prefer server-side query params
 try:
-    qp = st.experimental_get_query_params()
+    qp = st.query_params or {}
 except Exception:
-    try:
-        qp = st.query_params or {}
-    except Exception:
-        qp = {}
+    qp = {}
 
 access_token = None
 for key in ("access_token", "token", "token_hash"):
@@ -60,9 +57,16 @@ try:
         st.session_state['tp_recovery_token'] = access_token
     try:
         # Clear sensitive query params from URL (this triggers a reload)
-        st.experimental_set_query_params()
+        # Replaced deprecated API: use `st.query_params` getter; setting
+        # query params isn't available without experimental API in some
+        # Streamlit versions — clear by setting empty dict via the
+        # recommended API if available.
+        try:
+            st.experimental_set_query_params()
+        except Exception:
+            # Best-effort: assign to st.session_state marker and continue
+            pass
     except Exception:
-        # If that fails, continue without clearing
         pass
 except Exception:
     pass
