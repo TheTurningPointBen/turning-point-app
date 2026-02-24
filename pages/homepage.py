@@ -30,13 +30,17 @@ try:
                         const params = new URLSearchParams(hash.slice(1));
                         const type = params.get("type");
                         const access_token = params.get("access_token") || params.get("token") || params.get("token_hash");
-                        if (type === "recovery" && access_token) {
-                            // Merge existing query params with values from fragment
+                                if (type === "recovery" && access_token) {
+                            // Build a destination to the dedicated password_reset page so
+                            // the recovery UI handles the token server-side.
                             const q = new URLSearchParams(window.location.search);
                             q.set("type", type);
                             q.set("access_token", access_token);
                             q.set("from_fragment", "1");
-                            const newUrl = window.location.origin + window.location.pathname + "?" + q.toString();
+                            const newUrl = window.location.origin + '/password_reset' + "?" + q.toString();
+                            console.log('TP: redirecting fragment to password_reset', {newUrl});
+                            // Add a tiny DOM marker so we can confirm execution visually
+                            try { document.documentElement.setAttribute('data-tp-fragment','1'); } catch(e){}
                             // Replace location so navigation history isn't polluted with the fragment URL
                             window.location.replace(newUrl);
                         }

@@ -53,16 +53,26 @@ if not access_token:
 
 # Now access_token is available
 
-# Optionally clear query params so the token is not visible
+# Store token into session state for use by the UI and avoid exposing it in
+# query params. Then attempt to clear query params so the token isn't visible.
 try:
-    # Clear sensitive query params from URL (this triggers a reload)
-    st.experimental_set_query_params()
+    if access_token:
+        st.session_state['tp_recovery_token'] = access_token
+    try:
+        # Clear sensitive query params from URL (this triggers a reload)
+        st.experimental_set_query_params()
+    except Exception:
+        # If that fails, continue without clearing
+        pass
 except Exception:
-    # If that fails, continue without clearing
     pass
 
 # Continue with your password reset UI/logic
 st.write("Proceeding with password reset...")
+try:
+    st.markdown("<div style='font-size:12px;color:#666'>Debug: recovery token present</div>", unsafe_allow_html=True)
+except Exception:
+    pass
 
 # Example: show a form to set a new password, then call Supabase to complete the recovery.
 # Use access_token in whatever API call you need.
