@@ -52,19 +52,27 @@ if not access_token:
 
 # Store token into session state for use by the UI and avoid exposing it in
 # query params. Then attempt to clear query params so the token isn't visible.
-try:
-    if access_token:
-        st.session_state['tp_recovery_token'] = access_token
     try:
-        # Clear sensitive query params from URL (this triggers a reload)
-        # Replaced deprecated API: use `st.query_params` getter; setting
-        # query params isn't available without experimental API in some
-        # Streamlit versions — clear by setting empty dict via the
-        # recommended API if available.
+        if access_token:
+            st.session_state['tp_recovery_token'] = access_token
+        # Ensure dispatcher keeps rendering the password_reset page when
+        # we clear query params (clearing causes a reload which might
+        # otherwise land on the homepage). Set the page explicitly and
+        # rerun after clearing.
         try:
-            st.experimental_set_query_params()
+            st.session_state['page'] = 'password_reset'
         except Exception:
-            # Best-effort: assign to st.session_state marker and continue
+            pass
+        try:
+            # Attempt to clear query params. If available, this reloads
+            # the page; we set `page` above to keep rendering here.
+            st.experimental_set_query_params()
+            try:
+                st.experimental_rerun()
+            except Exception:
+                pass
+        except Exception:
+            # If clearing isn't available, continue without it.
             pass
     except Exception:
         pass
