@@ -3,46 +3,29 @@ from utils.ui import hide_sidebar
 import os
 import runpy
 
-# Server-side short-circuit: if the incoming URL already contains the
-# recovery token (e.g. ?type=recovery&access_token=...&from_fragment=1&target=password_reset)
-# dispatch to the password_reset page before rendering any UI so the
-# homepage cannot override the flow.
+# --- HARD EXIT FOR PASSWORD RECOVERY ---
 try:
     qp = st.query_params or {}
 except Exception:
     qp = {}
-qp_type = (qp.get('type') or [None])[0]
-qp_token = (qp.get('access_token') or [None])[0]
-qp_from = (qp.get('from_fragment') or [None])[0]
-qp_target = (qp.get('target') or [None])[0]
-if qp_type == 'recovery' and qp_token and qp_from == '1' and qp_target == 'password_reset':
-    try:
-        # Best-effort: clear query params so token isn't visible in URL
-        try:
-            st.experimental_set_query_params()
-        except Exception:
-            pass
 
-        # Prefer Streamlit's page switch when available
+qp_type = (qp.get("type") or [None])[0]
+qp_token = (qp.get("access_token") or qp.get("token") or qp.get("token_hash") or [None])[0]
+
+if qp_type == "recovery" and qp_token:
+    try:
+        st.switch_page("pages/password_reset.py")
+        st.stop()
+    except Exception:
+        import runpy, os
+        base_dir = os.path.dirname(__file__)
+        candidate = os.path.join(base_dir, "password_reset.py")
+        if os.path.isfile(candidate):
+            runpy.run_path(candidate, run_name="__main__")
         try:
-            st.switch_page("pages/password_reset.py")
             st.stop()
         except Exception:
-            # Fallback: run the password_reset page server-side to avoid
-            # rendering the homepage and overriding the flow.
-            try:
-                base_dir = os.path.dirname(__file__)
-                candidate = os.path.join(base_dir, 'password_reset.py')
-                if os.path.isfile(candidate):
-                    runpy.run_path(candidate, run_name='__main__')
-                    try:
-                        st.stop()
-                    except Exception:
-                        pass
-            except Exception:
-                pass
-    except Exception:
-        pass
+            pass
 
 hide_sidebar()
 
