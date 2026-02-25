@@ -101,19 +101,52 @@ confirm_pw = st.text_input('Confirm password', type='password')
 if st.button('Set new password'):
     if not new_pw or new_pw != confirm_pw:
         st.error('Passwords must match and not be empty.')
-    else:
         try:
-            from config import SUPABASE_URL, SUPABASE_KEY
-            import httpx as _httpx
+            # Prefer using the configured Supabase client so we reuse existing
+            # HTTP settings and avoid managing raw tokens manually.
+            from utils.database import supabase
 
-            url = f"{SUPABASE_URL.rstrip('/')}/auth/v1/user"
-            headers = {
-                'apikey': SUPABASE_KEY,
-                'Authorization': f'Bearer {token}',
-                'Content-Type': 'application/json'
-            }
-            resp = _httpx.put(url, json={'password': new_pw}, headers=headers, timeout=10.0)
-            if resp.status_code in (200, 204):
+            # Try to set the session with the recovery access token so the
+            # client has the correct auth context for update_user.
+            try:
+                # Newer supabase-py accepts a dict; older signatures accept kwargs.
+                try:
+                    supabase.auth.set_session({"access_token": token, "refresh_token": None})
+                except Exception:
+                    supabase.auth.set_session(access_token=token, refresh_token=None)
+            except Exception:
+                # If we cannot set the session that's ok — we can still attempt
+                # to call update_user with the provided token in some clients.
+                pass
+
+            # Attempt to update the user's password via the client API.
+            try:
+                res = supabase.auth.update_user({"password": new_pw})
+            except Exception:
+                # Some client versions return a (data, error) tuple or a dict.
+                try:
+                    res = supabase.auth.api.update_user(token, {"password": new_pw})
+                except Exception as e:
+                    res = {"error": str(e)}
+
+            # Interpret result: accept truthy result with no error field, or
+            # a dict where 'error' is falsy.
+            ok = False
+            try:
+                if isinstance(res, dict):
+                    if not res.get("error"):
+                        ok = True
+                elif isinstance(res, tuple) and len(res) >= 2:
+                    data, error = res[0], res[1]
+                    if not error:
+                        ok = True
+                else:
+                    # Fallback: treat any truthy response as success
+                    ok = bool(res)
+            except Exception:
+                ok = False
+
+            if ok:
                 st.success('Password updated. You will be redirected to the login page...')
                 # Clear token from session state
                 try:
@@ -131,7 +164,11 @@ if st.button('Set new password'):
                         pass
             else:
                 try:
-                    st.error(f"Failed to update password: {resp.status_code} {resp.text}")
+                    # Show structured error when available.
+                    if isinstance(res, dict) and res.get("error"):
+                        st.error(f"Failed to update password: {res.get('error')}")
+                    else:
+                        st.error('Failed to update password. See logs for details.')
                 except Exception:
                     st.error('Failed to update password. See logs for details.')
         except Exception as e:
