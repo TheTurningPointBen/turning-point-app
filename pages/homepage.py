@@ -1,4 +1,17 @@
 import streamlit as st
+
+st.markdown("""
+<script>
+(function() {
+    if (window.location.hash && window.location.hash.includes("access_token")) {
+        const hash = window.location.hash.substring(1);
+        const newUrl = window.location.pathname + "?" + hash;
+        window.location.replace(newUrl);
+    }
+})();
+</script>
+""", unsafe_allow_html=True)
+
 from utils.ui import hide_sidebar
 import os
 import runpy
