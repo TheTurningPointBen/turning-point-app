@@ -122,11 +122,12 @@ def get_supabase_service():
     return create_client(SUPABASE_URL, svc)
 
 
-def generate_recovery_link(email: str, redirect_to: str | None = None) -> dict:
+def generate_recovery_link(email: str) -> dict:
     """Generate a password recovery link via Supabase Admin API.
 
-    Requires `SUPABASE_SERVICE_ROLE` env var. Returns {'ok': True, 'link': url}
-    on success or {'error': msg} on failure.
+    Uses the Supabase project's Site URL (configured in Supabase) rather
+    than sending an explicit `redirect_to`. Requires `SUPABASE_SERVICE_ROLE`.
+    Returns {'ok': True, 'link': url} on success or {'error': msg} on failure.
     """
     svc = os.getenv('SUPABASE_SERVICE_ROLE')
     if not svc:
@@ -140,10 +141,10 @@ def generate_recovery_link(email: str, redirect_to: str | None = None) -> dict:
         'Authorization': f'Bearer {svc}',
         'Content-Type': 'application/json'
     }
-    # Ensure the recovery link redirects to the app's password reset page
-    site = os.getenv('SITE_URL') or os.getenv('APP_URL') or 'http://localhost:8501'
-    final_redirect = site.rstrip('/') + '/password_reset'
-    body = {'type': 'recovery', 'email': email, 'redirect_to': final_redirect}
+    # Do NOT send an explicit `redirect_to` — let Supabase use the
+    # project's configured Site URL. This avoids mismatches and keeps
+    # token delivery consistent across environments.
+    body = {'type': 'recovery', 'email': email}
     try:
         resp = httpx.post(url, headers=headers, json=body, timeout=10.0)
         if resp.status_code in (200, 201):

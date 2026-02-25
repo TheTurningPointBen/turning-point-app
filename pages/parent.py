@@ -197,8 +197,7 @@ with tab1:
                     from utils.email import send_email
                     import os
 
-                    site = os.getenv('SITE_URL') or os.getenv('APP_URL') or 'http://localhost:8501'
-                    gen = generate_recovery_link(fp_email, redirect_to=site + '/password_reset')
+                    gen = generate_recovery_link(fp_email)
                     if gen.get('ok'):
                         raw_link = gen.get('direct_link') or gen.get('link')
                         # Attempt to extract access_token from query or fragment so we can link directly to /password_reset
