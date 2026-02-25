@@ -22,28 +22,10 @@ import os
 import runpy
 
 # --- HARD EXIT FOR PASSWORD RECOVERY ---
-try:
-    qp = st.query_params or {}
-except Exception:
-    qp = {}
+qp = st.query_params
 
-qp_type = (qp.get("type") or [None])[0]
-qp_token = (qp.get("access_token") or qp.get("token") or qp.get("token_hash") or [None])[0]
-
-if qp_type == "recovery" and qp_token:
-    try:
-        st.switch_page("pages/password_reset.py")
-        st.stop()
-    except Exception:
-        import runpy, os
-        base_dir = os.path.dirname(__file__)
-        candidate = os.path.join(base_dir, "password_reset.py")
-        if os.path.isfile(candidate):
-            runpy.run_path(candidate, run_name="__main__")
-        try:
-            st.stop()
-        except Exception:
-            pass
+if qp.get("type") == "recovery" and qp.get("access_token"):
+    st.switch_page("pages/password_reset.py")
 
 hide_sidebar()
 
