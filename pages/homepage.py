@@ -29,17 +29,7 @@ if qp.get("type") == "recovery" and qp.get("access_token"):
 
 hide_sidebar()
 
-# Debugging aid: show whether query params include recovery values (no token value shown)
-try:
-    qp_dbg = {
-        'type': bool(qp.get('type')),
-        'has_token': bool(qp.get('access_token') or qp.get('token') or qp.get('token_hash')),
-        'from_fragment': qp.get('from_fragment', [None])[0],
-        'target': qp.get('target', [None])[0],
-    }
-    st.markdown(f"<div style='font-size:12px;color:#999'>DEBUG qp: {qp_dbg}</div>", unsafe_allow_html=True)
-except Exception:
-    pass
+# (Debug output previously shown here was removed.)
 
 try:
     st.set_page_config(page_title="Homepage")
