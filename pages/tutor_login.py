@@ -134,9 +134,9 @@ with tab1:
         unsafe_allow_html=True,
     )
 
-    email = st.text_input("Email", key="login_email")
+    email = st.text_input("Email", key="tutor_login_email")
     remember = st.checkbox("Remember me", key="remember_tutor")
-    password = st.text_input("Password", type="password", key="login_pw")
+    password = st.text_input("Password", type="password", key="tutor_login_pw")
 
     if st.button("Login"):
         try:

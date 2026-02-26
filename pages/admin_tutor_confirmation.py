@@ -327,7 +327,7 @@ for b in rows:
 
     # If tutor already confirmed via their portal, allow finalizing
     if status == "TutorConfirmed":
-        if st.button("Finalize & Email Parent", key=f"finalize_{booking_id}"):
+        if st.button("Finalize & Email Parent", key=f"admin_finalize_{booking_id}"):
             now = datetime.now()
             existing = set(b.keys() or [])
             candidate = {"status": "Confirmed", "confirmed_at": now.isoformat()}
