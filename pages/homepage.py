@@ -117,15 +117,17 @@ if qp_type == 'recovery' and qp_token:
                 # Fallback: run the password_reset page directly so we avoid
                 # the homepage rendering and any later redirects.
                 try:
-                    import runpy, os
-                    base_dir = os.path.dirname(__file__)
-                    candidate = os.path.join(base_dir, 'password_reset.py')
-                    if os.path.isfile(candidate):
-                        runpy.run_path(candidate, run_name='__main__')
-                        try:
-                            st.stop()
-                        except Exception:
-                            pass
+                    # Avoid importing/running another page module inside this
+                    # page process — that can register duplicate widget keys
+                    # and crash Streamlit. Instead, perform a client-side
+                    # redirect to the password reset path so Streamlit will
+                    # load it as a separate page.
+                    dest = f"/password_reset?type=recovery&access_token={qp_token}"
+                    st.markdown(f"<script>window.location.href='{dest}';</script>", unsafe_allow_html=True)
+                    try:
+                        st.stop()
+                    except Exception:
+                        pass
                 except Exception:
                     pass
         except Exception:
