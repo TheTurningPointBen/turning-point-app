@@ -59,4 +59,22 @@ After updating, try the "Forgot password" flow in the app — recovery links wil
 - The app entry is `turning_point_app/streamlit_app.py` (Streamlit Cloud expects a main file path).
 - Language fields for tutors exist in the DB migration script but language UI is disabled in the app; you can enable later if needed.
 
+## Using Supabase via CDN
+
+You can load Supabase from a CDN (jsDelivr) in browser pages:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+	// Create the client — note the global is `supabase` and we assign it to
+	// the same name: const supabase = supabase.createClient(...)
+	const supabase = supabase.createClient('https://your-project.supabase.co', 'public-anon-key');
+
+	// Example query (in an async function)
+	// const { data, error } = await supabase.from('my_table').select('*');
+</script>
+```
+
+Note: the global is `supabase` — create the client with the same name twice. Use the public/anon key in browser code and never expose a `service_role` key client-side.
+
 If you want, I can add a short LICENSE or CONTRIBUTING file next.

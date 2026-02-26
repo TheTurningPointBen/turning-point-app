@@ -3,3 +3,4 @@ venv/
 __pycache__/
 
 streamlit.log
+node_modules/
