@@ -130,8 +130,58 @@ def generate_recovery_link(email: str) -> dict:
     Returns {'ok': True, 'link': url} on success or {'error': msg} on failure.
     """
     svc = os.getenv('SUPABASE_SERVICE_ROLE')
+    # If service role key isn't configured, fall back to the project's
+    # public client and ask Supabase to send a recovery email using the
+    # configured `redirect_to` so the token lands back at our app.
     if not svc:
-        return {'error': 'SUPABASE_SERVICE_ROLE not configured'}
+        try:
+            # Use the regular project client to request a password reset
+            # email. This uses Supabase's SMTP/email provider configured
+            # in the project and accepts a `redirect_to` parameter.
+            site = os.getenv('SITE_URL') or os.getenv('APP_URL') or 'http://localhost:8501'
+            redirect_to = site.rstrip('/') + '/password_reset'
+            try:
+                sup = get_supabase()
+            except Exception:
+                # If we cannot construct the client, return an informative error
+                return {'error': 'Supabase client not configured (SUPABASE_URL/SUPABASE_KEY)'}
+
+            try:
+                res = sup.auth.reset_password_for_email(email, {"redirect_to": redirect_to})
+            except Exception as e:
+                try:
+                    # Some client versions return a dict under `data`/`error`
+                    return {'error': str(e)}
+                except Exception:
+                    return {'error': 'Failed to request password reset'}
+
+            # Normalize result
+            ok = False
+            out = {}
+            try:
+                if getattr(res, 'get', None):
+                    # dict-like
+                    out.update(res)
+                    if not out.get('error'):
+                        ok = True
+                else:
+                    # object-like from newer clients
+                    data = getattr(res, 'data', None)
+                    error = getattr(res, 'error', None)
+                    if data:
+                        out['response'] = data
+                    if not error:
+                        ok = True
+                    else:
+                        out['error'] = error
+            except Exception:
+                out = {'response': str(res)}
+
+            if ok:
+                out['ok'] = True
+            return out
+        except Exception as e:
+            return {'error': str(e)}
     if not SUPABASE_URL:
         return {'error': 'SUPABASE_URL not configured'}
 

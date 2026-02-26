@@ -1,4 +1,33 @@
 import streamlit as st
+from supabase import create_client
+
+st.set_page_config(layout="centered")
+
+st.markdown(
+    "<style>[data-testid='stSidebar']{display:none;}</style>",
+    unsafe_allow_html=True,
+)
+
+st.title("Reset your password")
+
+supabase = create_client(
+    st.secrets["SUPABASE_URL"],
+    st.secrets["SUPABASE_ANON_KEY"]
+)
+
+# Supabase JS handles token automatically from fragment
+password = st.text_input("New password", type="password")
+confirm = st.text_input("Confirm password", type="password")
+
+if st.button("Reset password"):
+    if password != confirm:
+        st.error("Passwords do not match")
+    else:
+        try:
+            supabase.auth.update_user({"password": password})
+            st.success("Password updated. You can now log in.")
+        except Exception as e:
+            st.error(f"Failed to update password: {e}")
 
 # Prefer server-side query params
 try:
@@ -6,10 +35,31 @@ try:
 except Exception:
     qp = {}
 
+# Require that the root app placed a `recovery` marker in session state.
+# This prevents direct navigation to the page without the intended flow.
+try:
+    if "recovery" not in st.session_state:
+        st.error("Password reset link is invalid or expired.")
+        st.stop()
+except Exception:
+    pass
+
+# Determine the recovery token: prefer session state, fall back to query params/fragment.
 access_token = None
+try:
+    # session value may be a list (from query_params) or a string
+    val = st.session_state.get("recovery")
+    if val:
+        if isinstance(val, (list, tuple)):
+            access_token = val[0]
+        else:
+            access_token = val
+except Exception:
+    access_token = None
+
 for key in ("access_token", "token", "token_hash"):
     if qp.get(key):
-        access_token = qp[key][0]
+        access_token = access_token or qp[key][0]
         break
 
 # If not found server-side (very rare after the homepage conversion), inject JS to
@@ -49,32 +99,40 @@ if not access_token:
     st.stop()
 
 # Now access_token is available
-
 # Store token into session state for use by the UI and avoid exposing it in
 # query params. Then attempt to clear query params so the token isn't visible.
-    try:
-        if access_token:
-            st.session_state['tp_recovery_token'] = access_token
-        # Ensure dispatcher keeps rendering the password_reset page when
-        # we clear query params (clearing causes a reload which might
-        # otherwise land on the homepage). Set the page explicitly and
-        # rerun after clearing.
+try:
+    if access_token:
+        st.session_state['tp_recovery_token'] = access_token
         try:
-            st.session_state['page'] = 'password_reset'
+            from utils.database import supabase
+            try:
+                supabase.auth.set_session({"access_token": access_token, "refresh_token": None})
+            except Exception:
+                try:
+                    supabase.auth.set_session(access_token=access_token, refresh_token=None)
+                except Exception:
+                    pass
         except Exception:
             pass
+    # Ensure dispatcher keeps rendering the password_reset page when
+    # we clear query params (clearing causes a reload which might
+    # otherwise land on the homepage). Set the page explicitly and
+    # rerun after clearing.
+    try:
+        st.session_state['page'] = 'password_reset'
+    except Exception:
+        pass
+    try:
+        # Attempt to clear query params. If available, this reloads
+        # the page; we set `page` above to keep rendering here.
+        st.experimental_set_query_params()
         try:
-            # Attempt to clear query params. If available, this reloads
-            # the page; we set `page` above to keep rendering here.
-            st.experimental_set_query_params()
-            try:
-                st.experimental_rerun()
-            except Exception:
-                pass
+            st.experimental_rerun()
         except Exception:
-            # If clearing isn't available, continue without it.
             pass
     except Exception:
+        # If clearing isn't available, continue without it.
         pass
 except Exception:
     pass

@@ -8,6 +8,21 @@ st.set_page_config(page_title="The Turning Point", layout="wide", initial_sideba
 
 # Ensure session state defaults exist for all pages
 init_session()
+# Detect simple recovery param and forward to password reset page
+try:
+    params = st.query_params or {}
+    if "recovery" in params:
+        try:
+            st.session_state["recovery"] = params["recovery"]
+        except Exception:
+            pass
+        try:
+            st.switch_page("pages/password_reset.py")
+            st.stop()
+        except Exception:
+            pass
+except Exception:
+    pass
 # If the root URL includes a Supabase recovery token (?type=recovery&access_token=...)
 # dispatch directly to the password_reset page so links that land on the homepage
 # will still surface the password reset UI.
