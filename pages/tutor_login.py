@@ -226,25 +226,12 @@ with tab1:
 
                     gen = generate_recovery_link(fp_email)
                     if gen.get('ok'):
-                        raw_link = gen.get('direct_link') or gen.get('link')
-                        try:
-                            from urllib.parse import urlparse, parse_qs
-                            p = urlparse(raw_link)
-                            token = None
-                            q = parse_qs(p.query)
-                            if 'access_token' in q:
-                                token = q.get('access_token')[0]
-                            if not token and p.fragment:
-                                fq = parse_qs(p.fragment)
-                                if 'access_token' in fq:
-                                    token = fq.get('access_token')[0]
-                        except Exception:
-                            token = None
-
-                        if token:
-                            link = site.rstrip('/') + f"/password_reset?type=recovery&access_token={token}"
-                        else:
-                            link = raw_link
+                        # Prefer a direct link returned by the generator (already
+                        # includes our app URL when possible). Fall back to any
+                        # other link field returned.
+                        raw_link = gen.get('direct_link') or gen.get('link') or gen.get('response') or None
+                        # Ensure we have an absolute link to include in the email.
+                        link = raw_link
 
                         subj = 'Turning Point — Password reset instructions'
                         plain = f"Follow this link to reset your password: {link}\nIf you did not request this, ignore this email."
