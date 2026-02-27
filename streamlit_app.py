@@ -4,10 +4,164 @@ from utils.session import init_session
 from utils.ui import safe_rerun
 
 # Configure the app once (must be called only once) and before any other Streamlit calls
-st.set_page_config(page_title="The Turning Point", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(
+    page_title="The Turning Point", 
+    layout="wide", 
+    initial_sidebar_state="collapsed",
+    page_icon="🎈"
+)
+
+# ===== CUSTOM CSS FOR PROFESSIONAL STYLING =====
+st.markdown("""
+    <style>
+    /* Import Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+    
+    /* Global Styling */
+    * {
+        font-family: 'Poppins', sans-serif;
+    }
+    
+    .stApp {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    }
+    
+    /* Logo Container */
+    .logo-container {
+        text-align: center;
+        padding: 2rem 0;
+        background: white;
+        border-radius: 0 0 20px 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin-bottom: 3rem;
+    }
+    
+    .logo-container img {
+        max-width: 450px;
+        width: 90%;
+        height: auto;
+    }
+    
+    /* Main Title Styling */
+    h1 {
+        color: #dc143c;
+        font-weight: 700;
+        text-align: center;
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    /* Subtitle */
+    .stSubheader, h3 {
+        color: #555;
+        text-align: center;
+        font-weight: 600;
+        margin-bottom: 2rem;
+    }
+    
+    /* Role Card Container */
+    .role-cards-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+    
+    /* Role Card Styling */
+    .stButton > button {
+        width: 100%;
+        height: 200px;
+        background: white;
+        border: 3px solid #e0e0e0;
+        border-radius: 20px;
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #333;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #dc143c 0%, #a10000 100%);
+        color: white;
+        border-color: #dc143c;
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(220, 20, 60, 0.3);
+    }
+    
+    .stButton > button:active {
+        transform: translateY(-2px);
+    }
+    
+    /* Button Icons - Make them larger */
+    .stButton > button::before {
+        font-size: 3rem;
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Column spacing */
+    [data-testid="column"] {
+        padding: 1rem;
+    }
+    
+    /* Hide default Streamlit elements */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Remove extra padding */
+    .block-container {
+        padding-top: 1rem;
+        padding-bottom: 2rem;
+        max-width: 100%;
+    }
+    
+    /* Tagline */
+    .tagline {
+        text-align: center;
+        color: #666;
+        font-size: 1.1rem;
+        font-style: italic;
+        margin-bottom: 3rem;
+        padding: 1rem;
+    }
+    
+    .tagline strong {
+        color: #dc143c;
+    }
+    
+    /* Decorative elements */
+    .balloon-decoration {
+        font-size: 2rem;
+        animation: float 3s ease-in-out infinite;
+    }
+    
+    @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+    }
+    
+    /* Role card custom styling */
+    .role-card-parent {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .role-card-tutor {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    
+    .role-card-admin {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # Ensure session state defaults exist for all pages
 init_session()
+
 # Detect simple recovery param and forward to password reset page
 try:
     params = st.query_params or {}
@@ -23,6 +177,7 @@ try:
             pass
 except Exception:
     pass
+
 # If the root URL includes a Supabase recovery token (?type=recovery&access_token=...)
 # dispatch directly to the password_reset page so links that land on the homepage
 # will still surface the password reset UI.
@@ -39,18 +194,12 @@ try:
     qp_token = (qp.get('access_token') or [None])[0]
     if qp_type == 'recovery' and qp_token:
         try:
-            # Prefer Streamlit's page switch when possible so the multipage
-            # dispatcher handles rendering. Fall back to running the page
-            # directly if `st.switch_page` isn't available in this runtime.
             try:
                 st.switch_page("pages/password_reset.py")
                 st.stop()
             except Exception:
                 pass
 
-            # Immediately dispatch the password_reset page server-side so the
-            # recovery link opens the correct UI even when client-side query
-            # propagation is delayed.
             import runpy, os
             base_dir = os.path.dirname(__file__)
             candidate = os.path.join(base_dir, 'pages', 'password_reset.py')
@@ -58,7 +207,6 @@ try:
                 runpy.run_path(candidate, run_name='__main__')
                 st.stop()
         except Exception:
-            # Fallback: set the page so the dispatcher may pick it up later
             try:
                 st.session_state['page'] = 'password_reset'
                 st.experimental_rerun()
@@ -66,14 +214,10 @@ try:
                 pass
 except Exception:
     pass
-# Ensure a default `page` query param exists for unauthenticated users so
-# Streamlit's multipage auto-loading doesn't pick a sidebar page on refresh.
+
+# Ensure a default `page` query param exists for unauthenticated users
 if not st.session_state.get("authenticated"):
-    # Ensure unauthenticated sessions land on the homepage. Set a session
-    # key so our dispatcher will render `pages/homepage.py` on refresh.
     try:
-        # Only set a default homepage when no `page` has already been chosen
-        # (this allows explicit pages like `password_reset` to take precedence).
         if not st.session_state.get('page'):
             st.session_state['page'] = 'homepage'
             try:
@@ -81,7 +225,6 @@ if not st.session_state.get("authenticated"):
             except Exception:
                 pass
     except Exception:
-        # Fallback: client-side replace URL and hide sidebar
         st.markdown(
             """
             <script>
@@ -103,10 +246,7 @@ if not st.session_state.get("authenticated"):
 
 hide_sidebar()
 
-# Client-side redirect: if the browser landed on the root URL with a Supabase
-# recovery token (either in the query string or fragment/hash), navigate the
-# browser directly to `/password_reset` so the recovery link opens the correct
-# UI even if server-side dispatch doesn't observe the query params immediately.
+# Client-side redirect for recovery tokens
 try:
     st.markdown(
         """
@@ -121,7 +261,6 @@ try:
                     }
                 }
 
-                // Check query string first
                 const params = new URLSearchParams(window.location.search || '');
                 const t = params.get('type');
                 const token = params.get('access_token');
@@ -131,7 +270,6 @@ try:
                     return;
                 }
 
-                // If no query params, also inspect the fragment/hash (e.g. #access_token=...)
                 if(window.location.hash){
                     const frag = window.location.hash.replace(/^#/, '');
                     const fparams = new URLSearchParams(frag);
@@ -139,7 +277,6 @@ try:
                     const ftoken = fparams.get('access_token');
                     if(ft === 'recovery' && ftoken){
                         const dest = '/password_reset?type=recovery&access_token=' + encodeURIComponent(ftoken);
-                        // Try replacing URL repeatedly then navigate
                         scheduleRedirect(dest);
                         return;
                     }
@@ -153,16 +290,14 @@ try:
 except Exception:
     pass
 
-# Ensure older code calling `st.experimental_rerun()` keeps working by
-# providing a compatibility shim that points to our safe helper when
-# Streamlit doesn't expose `experimental_rerun`.
+# Compatibility shim for experimental_rerun
 try:
     if not hasattr(st, 'experimental_rerun'):
         setattr(st, 'experimental_rerun', safe_rerun)
 except Exception:
     pass
 
-# Dispatcher early so root app doesn't also render the same page (e.g. homepage)
+# Dispatcher early so root app doesn't also render the same page
 import runpy
 import os
 
@@ -182,24 +317,29 @@ def _dispatch_page_early():
         runpy.run_path(candidate, run_name="__main__")
         st.stop()
     except Exception:
-        # Let the main dispatcher at the bottom show an error if needed
         pass
 
-# Attempt early dispatch so the root app doesn't render the same page
 _dispatch_page_early()
 
-# Custom CSS for clean UI
+# ===== LOGO HEADER =====
 st.markdown("""
-    <style>
-    .role-card { text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 10px; cursor: pointer; }
-    .role-card:hover { background-color: #f0f2f6; }
-    </style>
+    <div class="logo-container">
+        <img src="https://raw.githubusercontent.com/TheTurningPointBen/turning-point-app/main/logo.jpg" alt="The Turning Point Logo">
+    </div>
 """, unsafe_allow_html=True)
 
-st.title("The Turning Point Pty Ltd")
-st.subheader("Select your portal")
+# ===== MAIN CONTENT =====
+st.title("🎈 The Turning Point")
+st.markdown("""
+    <div class="tagline">
+        <strong>Educational & Emotional Support for Children</strong><br>
+        <span class="balloon-decoration">🎈</span> It's only up from HERE!
+    </div>
+""", unsafe_allow_html=True)
 
-# Hide Streamlit Pages list in the sidebar for a cleaner landing page
+st.subheader("Select Your Portal")
+
+# Hide Streamlit Pages list in sidebar
 st.markdown(
     """
     <script>
@@ -224,10 +364,13 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# ===== ROLE SELECTION CARDS =====
+st.markdown('<div class="role-cards-container">', unsafe_allow_html=True)
+
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    if st.button("👤 Parent"):
+    if st.button("👨‍👩‍👧 Parent Portal", key="parent_btn"):
         try:
             st.session_state['page'] = 'parent'
             st.session_state.role = 'parent'
@@ -237,8 +380,9 @@ with col1:
                 pass
         except Exception:
             st.session_state.role = 'parent'
+
 with col2:
-    if st.button("🎓 Tutor"):
+    if st.button("🎓 Tutor Portal", key="tutor_btn"):
         try:
             st.session_state['page'] = 'tutor_login'
             st.session_state.role = 'tutor'
@@ -248,8 +392,9 @@ with col2:
                 pass
         except Exception:
             st.session_state.role = 'tutor'
+
 with col3:
-    if st.button("🔑 Admin"):
+    if st.button("🔐 Admin Portal", key="admin_btn"):
         try:
             st.session_state['page'] = 'admin'
             st.session_state.role = 'admin'
@@ -260,21 +405,23 @@ with col3:
         except Exception:
             st.session_state.role = 'admin'
 
+st.markdown('</div>', unsafe_allow_html=True)
 
-# Simple dispatcher: if a page key is set in session, execute the matching
-# module under `pages_disabled/` so navigation works without Streamlit Pages.
-import runpy
-import os
+# ===== FOOTER =====
+st.markdown("""
+    <div style="text-align: center; margin-top: 4rem; padding: 2rem; color: #999; font-size: 0.9rem;">
+        <p>🎈 <strong>The Turning Point Pty Ltd</strong></p>
+        <p>Educational & Emotional Support for Children | © 2024 All rights reserved.</p>
+    </div>
+""", unsafe_allow_html=True)
 
+# Simple dispatcher
 def _dispatch_page():
     page = st.session_state.get('page')
     if not page or page in ('home', 'landing'):
         return
 
     base_dir = os.path.dirname(__file__)
-    # Prefer the active `pages/` directory (Streamlit multipage), fallback to
-    # `pages_disabled/` if present (older copy). This allows toggling without
-    # breaking the dispatcher.
     candidate = os.path.join(base_dir, 'pages', f"{page}.py")
     if not os.path.isfile(candidate):
         candidate = os.path.join(base_dir, 'pages_disabled', f"{page}.py")
@@ -287,6 +434,5 @@ def _dispatch_page():
         st.stop()
     except Exception as e:
         st.error(f"Failed to load page '{page}': {e}")
-
 
 _dispatch_page()
