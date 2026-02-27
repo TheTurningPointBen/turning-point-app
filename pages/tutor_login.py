@@ -101,6 +101,11 @@ def safe_rerun():
 with tab1:
     st.subheader("Tutor Login")
 
+    # If a reset was just requested, show a prominent confirmation so users
+    # don't miss the message inside the expander.
+    if st.session_state.get('tutor_forgot_sent'):
+        st.success('The link to reset your password has been sent to your email.')
+
     # If a refresh token exists in localStorage, send it once via URL so
     # the server can restore the session (we remove it from URL afterwards).
     st.markdown(
@@ -238,6 +243,13 @@ with tab1:
                         html = f"<p>Follow this link to reset your password:</p><p><a href=\"{link}\">Reset password</a></p>"
                         send_res = send_email(fp_email, subj, body=plain, html=html)
                         if send_res.get('ok'):
+                            # Persist a flag so we can show a prominent confirmation
+                            # message outside the collapsed expander (some users may
+                            # miss messages shown inside the expander).
+                            try:
+                                st.session_state['tutor_forgot_sent'] = True
+                            except Exception:
+                                pass
                             st.success('If that email exists, password reset instructions have been sent.')
                         else:
                             st.warning('Password reset request could not be sent — please contact support.')
