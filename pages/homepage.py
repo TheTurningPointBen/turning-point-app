@@ -282,7 +282,6 @@ try:
     # Try multiple logo locations
     logo_displayed = False
     logo_paths = [
-        'logo.jpg',
         'assets/logo.jpg', 
         'static/logo.jpg',
         '/mnt/user-data/uploads/1772188401219_TTP_Logo.jpg'

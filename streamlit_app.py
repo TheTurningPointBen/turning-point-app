@@ -335,10 +335,11 @@ def _dispatch_page_early():
 
 _dispatch_page_early()
 
-# ===== LOGO HEADER =====
+# ===== LOGO HEADER (text fallback) =====
 st.markdown("""
-    <div class="logo-container">
-        <img src="https://raw.githubusercontent.com/TheTurningPointBen/turning-point-app/main/logo.jpg" alt="The Turning Point Logo">
+    <div class="logo-container" style="padding: 1.5rem;">
+        <h1 style="color: #dc143c; margin: 0; font-size: 2rem;">🎈 The Turning Point</h1>
+        <p style="color: #666; margin: 0.5rem 0 0 0; font-size: 1rem;">Educational & Emotional Support for Children</p>
     </div>
 """, unsafe_allow_html=True)
 
