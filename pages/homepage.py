@@ -334,7 +334,8 @@ st.markdown("""
 # ===== PORTAL SELECTION =====
 st.markdown('<div class="portal-title">Select Your Portal</div>', unsafe_allow_html=True)
 
-col1, col2, col3 = st.columns(3)
+# Create 5 columns to center the 3 buttons (empty, parent, tutor, admin, empty)
+col_spacer1, col1, col2, col3, col_spacer2 = st.columns([1, 2, 2, 2, 1])
 
 with col1:
     if st.button("👨‍👩‍👧\n\nParent Portal", key="homepage_parent"):
