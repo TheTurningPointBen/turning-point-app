@@ -37,7 +37,7 @@ mb_key = (
 mb_base = os.getenv("MAILBLAZE_BASE") or os.getenv("MAILBLAZE_BASE_URL") or os.getenv('mailblaze_http') or "https://control.mailblaze.com/api"
 sender = os.getenv("SENDER_EMAIL") or os.getenv("EMAIL_FROM") or os.getenv("SMTP_USER")
 
-st.write("**Configured values (masked):**)"
+st.write("**Configured values (masked):**")
 st.write(f"MAILBLAZE_API_KEY: {mask(mb_key)}")
 st.write(f"MAILBLAZE_BASE: {mask(mb_base)}")
 st.write(f"SENDER_EMAIL: {mask(sender)}")
