@@ -373,6 +373,6 @@ with col3:
 # ===== FOOTER - Compact =====
 st.markdown("""
     <div class="footer">
-        <strong>The Turning Point Pty Ltd</strong> | Educational & Emotional Support for Children | © 2024
+        <strong>The Turning Point Education Pty Ltd</strong> | Educational & Emotional Support for Children | © 2004
     </div>
 """, unsafe_allow_html=True)
