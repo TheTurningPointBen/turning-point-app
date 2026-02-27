@@ -30,11 +30,11 @@ if qp.get("type") == "recovery" and qp.get("access_token"):
 hide_sidebar()
 
 try:
-    st.set_page_config(page_title="The Turning Point - Homepage", layout="wide", page_icon="🎈")
+    st.set_page_config(page_title="The Turning Point - Homepage", layout="centered", page_icon="🎈")
 except Exception:
     pass
 
-# ===== CUSTOM CSS FOR PROFESSIONAL STYLING =====
+# ===== CUSTOM CSS - FIXED SPACING & CENTERING =====
 st.markdown("""
     <style>
     /* Import Google Fonts */
@@ -49,112 +49,105 @@ st.markdown("""
         background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
     }
     
-    /* Logo Container */
+    /* FIXED: Reduce all padding to fit on one page */
+    .block-container {
+        padding-top: 1rem !important;
+        padding-bottom: 1rem !important;
+        max-width: 1200px;
+    }
+    
+    /* Logo Container - FIXED */
     .logo-container {
         text-align: center;
-        padding: 2rem 0;
+        padding: 1rem 0 0.5rem 0;
         background: white;
-        border-radius: 0 0 20px 20px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        margin-bottom: 3rem;
+        border-radius: 0 0 15px 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        margin-bottom: 1.5rem;
     }
     
     .logo-container img {
-        max-width: 500px;
-        width: 90%;
+        max-width: 400px;
+        width: 85%;
         height: auto;
+        display: block;
+        margin: 0 auto;
     }
     
-    /* Main Title Styling */
-    h1 {
-        color: #dc143c;
-        font-weight: 700;
-        text-align: center;
-        font-size: 2.8rem;
-        margin-bottom: 1rem;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    /* Welcome Message */
+    /* Welcome Message - Compact */
     .welcome-message {
         text-align: center;
-        font-size: 1.3rem;
+        font-size: 1.1rem;
         color: #555;
-        margin-bottom: 3rem;
-        padding: 1.5rem;
+        margin-bottom: 1rem;
+        padding: 0.8rem;
         background: white;
-        border-radius: 15px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        max-width: 800px;
-        margin-left: auto;
-        margin-right: auto;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
     
     .welcome-message strong {
         color: #dc143c;
     }
     
-    /* Tagline */
+    /* Tagline - Compact */
     .tagline {
         text-align: center;
         color: #666;
-        font-size: 1.2rem;
+        font-size: 1rem;
         font-style: italic;
-        margin-bottom: 3rem;
-        padding: 1rem;
+        margin-bottom: 1.5rem;
+        padding: 0.5rem;
     }
     
     .tagline strong {
         color: #dc143c;
     }
     
-    /* Role Card Container */
-    .role-cards-container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 2rem;
-    }
-    
     /* Portal Selection Title */
     .portal-title {
         text-align: center;
-        font-size: 1.8rem;
-        font-weight: 600;
-        color: #333;
-        margin-bottom: 2rem;
-    }
-    
-    /* Role Card Styling */
-    .stButton > button {
-        width: 100%;
-        height: 220px;
-        background: white;
-        border: 3px solid #e0e0e0;
-        border-radius: 20px;
         font-size: 1.5rem;
         font-weight: 600;
         color: #333;
+        margin-bottom: 1.5rem;
+    }
+    
+    /* FIXED: Center the portal buttons */
+    [data-testid="column"] {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 0.5rem;
+    }
+    
+    /* Role Card Styling - Compact but still nice */
+    .stButton > button {
+        width: 100%;
+        max-width: 280px;
+        height: 180px;
+        background: white;
+        border: 3px solid #e0e0e0;
+        border-radius: 15px;
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: #333;
         transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        position: relative;
-        overflow: hidden;
+        box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+        display: block;
+        margin: 0 auto;
     }
     
     .stButton > button:hover {
         background: linear-gradient(135deg, #dc143c 0%, #a10000 100%);
         color: white;
         border-color: #dc143c;
-        transform: translateY(-8px);
-        box-shadow: 0 12px 30px rgba(220, 20, 60, 0.4);
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(220, 20, 60, 0.35);
     }
     
     .stButton > button:active {
-        transform: translateY(-4px);
-    }
-    
-    /* Column spacing */
-    [data-testid="column"] {
-        padding: 1rem;
+        transform: translateY(-2px);
     }
     
     /* Hide default Streamlit elements */
@@ -162,41 +155,39 @@ st.markdown("""
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
-    /* Remove extra padding */
-    .block-container {
-        padding-top: 1rem;
-        padding-bottom: 3rem;
-        max-width: 100%;
-    }
-    
     /* Balloon Animation */
     .balloon-decoration {
-        font-size: 2rem;
+        font-size: 1.5rem;
         animation: float 3s ease-in-out infinite;
         display: inline-block;
     }
     
     @keyframes float {
         0%, 100% { transform: translateY(0px); }
-        50% { transform: translateY(-12px); }
+        50% { transform: translateY(-8px); }
     }
     
-    /* Footer */
+    /* Footer - Compact */
     .footer {
         text-align: center;
-        margin-top: 4rem;
-        padding: 2rem;
+        margin-top: 2rem;
+        padding: 1rem;
         color: #999;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
     }
     
     /* Recovery Link Styling */
     .stError {
         background-color: #fff3cd;
         border-left: 4px solid #ffc107;
-        padding: 1rem;
+        padding: 0.8rem;
         border-radius: 8px;
-        margin-bottom: 2rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* Remove extra spacing from Streamlit */
+    div[data-testid="stVerticalBlock"] > div {
+        gap: 0.5rem;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -282,20 +273,55 @@ if qp_type == 'recovery' and qp_token:
             except Exception:
                 st.markdown(f"[Open password reset]({dest})")
 
-# ===== LOGO HEADER =====
-st.markdown("""
-    <div class="logo-container">
-        <img src="https://raw.githubusercontent.com/TheTurningPointBen/turning-point-app/main/logo.jpg" 
-             alt="The Turning Point Logo"
-             onerror="this.style.display='none'">
-    </div>
-""", unsafe_allow_html=True)
+# ===== LOGO HEADER - FIXED: Using base64 image =====
+import base64
 
-# ===== WELCOME MESSAGE =====
+# Try to load logo from the uploads directory first, fallback to placeholder
+try:
+    # Check if logo exists in common locations
+    logo_paths = [
+        '/mnt/user-data/uploads/1772188401219_TTP_Logo.jpg',
+        'logo.jpg',
+        'assets/logo.jpg',
+        'static/logo.jpg'
+    ]
+    
+    logo_data = None
+    for logo_path in logo_paths:
+        try:
+            with open(logo_path, 'rb') as f:
+                logo_data = base64.b64encode(f.read()).decode()
+                break
+        except:
+            continue
+    
+    if logo_data:
+        st.markdown(f"""
+            <div class="logo-container">
+                <img src="data:image/jpeg;base64,{logo_data}" alt="The Turning Point Logo">
+            </div>
+        """, unsafe_allow_html=True)
+    else:
+        # Fallback: Try from GitHub
+        st.markdown("""
+            <div class="logo-container">
+                <img src="https://raw.githubusercontent.com/TheTurningPointBen/turning-point-app/main/logo.jpg" 
+                     alt="The Turning Point Logo">
+            </div>
+        """, unsafe_allow_html=True)
+except Exception as e:
+    # If all else fails, show text
+    st.markdown("""
+        <div class="logo-container" style="padding: 2rem;">
+            <h1 style="color: #dc143c; margin: 0;">The Turning Point</h1>
+            <p style="color: #666; margin: 0.5rem 0 0 0;">🎈 It's only up from HERE!</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+# ===== WELCOME MESSAGE - Compact =====
 st.markdown("""
     <div class="welcome-message">
-        Welcome to <strong>The Turning Point</strong> 🎈<br>
-        <em>Educational & Emotional Support for Children</em>
+        Welcome to <strong>The Turning Point</strong> — Educational & Emotional Support for Children
     </div>
 """, unsafe_allow_html=True)
 
@@ -307,8 +333,6 @@ st.markdown("""
 
 # ===== PORTAL SELECTION =====
 st.markdown('<div class="portal-title">Select Your Portal</div>', unsafe_allow_html=True)
-
-st.markdown('<div class="role-cards-container">', unsafe_allow_html=True)
 
 col1, col2, col3 = st.columns(3)
 
@@ -345,13 +369,9 @@ with col3:
             except Exception:
                 pass
 
-st.markdown('</div>', unsafe_allow_html=True)
-
-# ===== FOOTER =====
+# ===== FOOTER - Compact =====
 st.markdown("""
     <div class="footer">
-        <p>🎈 <strong>The Turning Point Pty Ltd</strong></p>
-        <p>Educational & Emotional Support for Children | © 2024 All rights reserved.</p>
+        <strong>The Turning Point Pty Ltd</strong> | Educational & Emotional Support for Children | © 2024
     </div>
 """, unsafe_allow_html=True)
-pass
