@@ -273,48 +273,59 @@ if qp_type == 'recovery' and qp_token:
             except Exception:
                 st.markdown(f"[Open password reset]({dest})")
 
-# ===== LOGO HEADER - FIXED: Using base64 image =====
+# ===== LOGO HEADER - USING STREAMLIT IMAGE =====
+# Display logo using st.image for better compatibility
 import base64
+from PIL import Image
 
-# Try to load logo from the uploads directory first, fallback to placeholder
 try:
-    # Check if logo exists in common locations
+    # Try multiple logo locations
+    logo_displayed = False
     logo_paths = [
-        '/mnt/user-data/uploads/1772188401219_TTP_Logo.jpg',
         'logo.jpg',
-        'assets/logo.jpg',
-        'static/logo.jpg'
+        'assets/logo.jpg', 
+        'static/logo.jpg',
+        '/mnt/user-data/uploads/1772188401219_TTP_Logo.jpg'
     ]
     
-    logo_data = None
     for logo_path in logo_paths:
         try:
-            with open(logo_path, 'rb') as f:
-                logo_data = base64.b64encode(f.read()).decode()
-                break
+            st.markdown('<div class="logo-container">', unsafe_allow_html=True)
+            st.image(logo_path, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            logo_displayed = True
+            break
         except:
             continue
     
-    if logo_data:
-        st.markdown(f"""
-            <div class="logo-container">
-                <img src="data:image/jpeg;base64,{logo_data}" alt="The Turning Point Logo">
-            </div>
-        """, unsafe_allow_html=True)
-    else:
-        # Fallback: Try from GitHub
+    # If no local file works, try to use uploaded image from context
+    if not logo_displayed:
+        try:
+            # Try to load from uploaded files
+            uploaded_logo = '/mnt/user-data/uploads/1772188401219_TTP_Logo.jpg'
+            img = Image.open(uploaded_logo)
+            st.markdown('<div class="logo-container">', unsafe_allow_html=True)
+            st.image(img, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            logo_displayed = True
+        except:
+            pass
+    
+    # Final fallback - text version
+    if not logo_displayed:
         st.markdown("""
-            <div class="logo-container">
-                <img src="https://raw.githubusercontent.com/TheTurningPointBen/turning-point-app/main/logo.jpg" 
-                     alt="The Turning Point Logo">
+            <div class="logo-container" style="padding: 1.5rem;">
+                <h1 style="color: #dc143c; margin: 0; font-size: 2rem;">🎈 The Turning Point</h1>
+                <p style="color: #666; margin: 0.5rem 0 0 0; font-size: 1rem;">Educational & Emotional Support for Children</p>
             </div>
         """, unsafe_allow_html=True)
+        
 except Exception as e:
-    # If all else fails, show text
+    # Show text version if anything fails
     st.markdown("""
-        <div class="logo-container" style="padding: 2rem;">
-            <h1 style="color: #dc143c; margin: 0;">The Turning Point</h1>
-            <p style="color: #666; margin: 0.5rem 0 0 0;">🎈 It's only up from HERE!</p>
+        <div class="logo-container" style="padding: 1.5rem;">
+            <h1 style="color: #dc143c; margin: 0; font-size: 2rem;">🎈 The Turning Point</h1>
+            <p style="color: #666; margin: 0.5rem 0 0 0; font-size: 1rem;">Educational & Emotional Support for Children</p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -334,8 +345,8 @@ st.markdown("""
 # ===== PORTAL SELECTION =====
 st.markdown('<div class="portal-title">Select Your Portal</div>', unsafe_allow_html=True)
 
-# Create 5 columns to center the 3 buttons (empty, parent, tutor, admin, empty)
-col_spacer1, col1, col2, col3, col_spacer2 = st.columns([1, 2, 2, 2, 1])
+# Create 5 columns with more space on left to push buttons right
+col_spacer1, col1, col2, col3, col_spacer2 = st.columns([1.5, 2, 2, 2, 0.5])
 
 with col1:
     if st.button("👨‍👩‍👧\n\nParent Portal", key="homepage_parent"):
@@ -376,3 +387,4 @@ st.markdown("""
         <strong>The Turning Point Education Pty Ltd</strong> | Educational & Emotional Support for Children | © 2004
     </div>
 """, unsafe_allow_html=True)
+True)
