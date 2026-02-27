@@ -314,8 +314,22 @@ def _dispatch_page_early():
             return
 
     try:
-        runpy.run_path(candidate, run_name="__main__")
-        st.stop()
+        # Avoid executing page modules in-process with `runpy.run_path` —
+        # that registers Streamlit widgets twice and leads to duplicate
+        # element key errors. Prefer `st.switch_page` when available so
+        # the multipage loader handles the page, otherwise perform a
+        # client-side redirect to the page path.
+        try:
+            st.switch_page(f"pages/{page}.py")
+            st.stop()
+        except Exception:
+            # Client-side redirect to the multipage route (e.g. /password_reset)
+            try:
+                dest = f"/{page}"
+                st.markdown(f"<script>window.location.href='{dest}';</script>", unsafe_allow_html=True)
+                st.stop()
+            except Exception:
+                pass
     except Exception:
         pass
 
@@ -430,8 +444,13 @@ def _dispatch_page():
             return
 
     try:
-        runpy.run_path(candidate, run_name="__main__")
-        st.stop()
+        try:
+            st.switch_page(f"pages/{page}.py")
+            st.stop()
+        except Exception:
+            dest = f"/{page}"
+            st.markdown(f"<script>window.location.href='{dest}';</script>", unsafe_allow_html=True)
+            st.stop()
     except Exception as e:
         st.error(f"Failed to load page '{page}': {e}")
 
