@@ -51,66 +51,18 @@ st.markdown("""
     
     /* FIXED: Reduce all padding to fit on one page */
     .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 1rem !important;
+        padding-top: 0.5rem !important;
+        padding-bottom: 0.5rem !important;
         max-width: 1200px;
-    }
-    
-    /* Logo Container - FIXED */
-    .logo-container {
-        text-align: center;
-        padding: 1rem 0 0.5rem 0;
-        background: white;
-        border-radius: 0 0 15px 15px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-        margin-bottom: 1.5rem;
-    }
-    
-    .logo-container img {
-        max-width: 400px;
-        width: 85%;
-        height: auto;
-        display: block;
-        margin: 0 auto;
-    }
-    
-    /* Welcome Message - Compact */
-    .welcome-message {
-        text-align: center;
-        font-size: 1.1rem;
-        color: #555;
-        margin-bottom: 1rem;
-        padding: 0.8rem;
-        background: white;
-        border-radius: 10px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-    
-    .welcome-message strong {
-        color: #dc143c;
-    }
-    
-    /* Tagline - Compact */
-    .tagline {
-        text-align: center;
-        color: #666;
-        font-size: 1rem;
-        font-style: italic;
-        margin-bottom: 1.5rem;
-        padding: 0.5rem;
-    }
-    
-    .tagline strong {
-        color: #dc143c;
     }
     
     /* Portal Selection Title */
     .portal-title {
         text-align: center;
-        font-size: 1.5rem;
+        font-size: 1.3rem;
         font-weight: 600;
         color: #333;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1rem;
     }
     
     /* FIXED: Center the portal buttons */
@@ -118,18 +70,18 @@ st.markdown("""
         display: flex;
         justify-content: center;
         align-items: center;
-        padding: 0.5rem;
+        padding: 0.3rem;
     }
     
-    /* Role Card Styling - Compact but still nice */
+    /* Role Card Styling - More Compact */
     .stButton > button {
         width: 100%;
-        max-width: 280px;
-        height: 180px;
+        max-width: 260px;
+        height: 150px;
         background: white;
         border: 3px solid #e0e0e0;
         border-radius: 15px;
-        font-size: 1.3rem;
+        font-size: 1.2rem;
         font-weight: 600;
         color: #333;
         transition: all 0.3s ease;
@@ -273,71 +225,24 @@ if qp_type == 'recovery' and qp_token:
             except Exception:
                 st.markdown(f"[Open password reset]({dest})")
 
-# ===== LOGO HEADER - USING STREAMLIT IMAGE =====
-# Display logo using st.image for better compatibility
-import base64
-from PIL import Image
+# ===== NO LOGO - START WITH TITLE =====
 
-try:
-    # Try multiple logo locations
-    logo_displayed = False
-    logo_paths = [
-        'assets/logo.jpg', 
-        'static/logo.jpg',
-        '/mnt/user-data/uploads/1772188401219_TTP_Logo.jpg'
-    ]
-    
-    for logo_path in logo_paths:
-        try:
-            st.markdown('<div class="logo-container">', unsafe_allow_html=True)
-            st.image(logo_path, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-            logo_displayed = True
-            break
-        except:
-            continue
-    
-    # If no local file works, try to use uploaded image from context
-    if not logo_displayed:
-        try:
-            # Try to load from uploaded files
-            uploaded_logo = '/mnt/user-data/uploads/1772188401219_TTP_Logo.jpg'
-            img = Image.open(uploaded_logo)
-            st.markdown('<div class="logo-container">', unsafe_allow_html=True)
-            st.image(img, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-            logo_displayed = True
-        except:
-            pass
-    
-    # Final fallback - text version
-    if not logo_displayed:
-        st.markdown("""
-            <div class="logo-container" style="padding: 1.5rem;">
-                <h1 style="color: #dc143c; margin: 0; font-size: 2rem;">🎈 The Turning Point</h1>
-                <p style="color: #666; margin: 0.5rem 0 0 0; font-size: 1rem;">Educational & Emotional Support for Children</p>
-            </div>
-        """, unsafe_allow_html=True)
-        
-except Exception as e:
-    # Show text version if anything fails
-    st.markdown("""
-        <div class="logo-container" style="padding: 1.5rem;">
-            <h1 style="color: #dc143c; margin: 0; font-size: 2rem;">🎈 The Turning Point</h1>
-            <p style="color: #666; margin: 0.5rem 0 0 0; font-size: 1rem;">Educational & Emotional Support for Children</p>
-        </div>
-    """, unsafe_allow_html=True)
+# ===== NO LOGO - START WITH TITLE =====
 
-# ===== WELCOME MESSAGE - Compact =====
+# ===== COMPACT HEADER =====
 st.markdown("""
-    <div class="welcome-message">
-        Welcome to <strong>The Turning Point</strong> — Educational & Emotional Support for Children
+    <div style="text-align: center; padding: 0.5rem 0; margin-bottom: 0.5rem;">
+        <h1 style="color: #dc143c; font-size: 2rem; margin: 0; font-weight: 700;">
+            🎈 The Turning Point
+        </h1>
     </div>
 """, unsafe_allow_html=True)
 
+# ===== WELCOME MESSAGE - Ultra Compact =====
 st.markdown("""
-    <div class="tagline">
-        <span class="balloon-decoration">🎈</span> <strong>It's only up from HERE!</strong> <span class="balloon-decoration">🎈</span>
+    <div style="text-align: center; font-size: 1rem; color: #555; margin-bottom: 1rem; padding: 0.5rem;">
+        <strong>Bookings Application</strong><br>
+        <em style="font-size: 0.9rem; color: #dc143c;">It's only up from HERE!</em>
     </div>
 """, unsafe_allow_html=True)
 
@@ -380,10 +285,9 @@ with col3:
             except Exception:
                 pass
 
-# ===== FOOTER - Compact =====
+# ===== FOOTER - Ultra Compact =====
 st.markdown("""
-    <div class="footer">
-        <strong>The Turning Point Education Pty Ltd</strong> | Educational & Emotional Support for Children | © 2004
+    <div style="text-align: center; margin-top: 1rem; padding: 0.5rem; color: #999; font-size: 0.75rem;">
+        <strong>The Turning Point Education Pty Ltd</strong> | © 2004
     </div>
 """, unsafe_allow_html=True)
-
