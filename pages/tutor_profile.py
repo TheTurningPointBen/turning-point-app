@@ -90,12 +90,12 @@ def _role_to_db(r):
 
 if not profile:
     st.subheader("Complete Your Tutor Profile")
-    name = st.text_input("Name")
-    surname = st.text_input("Surname")
-    phone = st.text_input("Phone Number")
-    town = st.text_input("Town")
-    city = st.text_input("City")
-    email = st.text_input("Email", value=getattr(user, 'email', '') or "")
+    name = st.text_input("Name", key="tutor_name")
+    surname = st.text_input("Surname", key="tutor_surname")
+    phone = st.text_input("Phone Number", key="tutor_phone")
+    town = st.text_input("Town", key="tutor_town")
+    city = st.text_input("City", key="tutor_city")
+    email = st.text_input("Email", value=getattr(user, 'email', '') or "", key="tutor_email")
     st.markdown("---")
     st.subheader("Languages")
     st.info("All exams you currently will Read or Scribe will be in English.\nPlease choose languages below that you can also Read and Scribe in proficiently. Leave blank if none apply.")
@@ -112,18 +112,26 @@ if not profile:
     transport = st.checkbox("I have my own transport")
 
     if st.button("Save Profile"):
-        if not all([name, surname, phone, town, city, email]):
+        # read values from session_state to better capture browser autofill
+        name_v = (st.session_state.get("tutor_name") or "").strip()
+        surname_v = (st.session_state.get("tutor_surname") or "").strip()
+        phone_v = (st.session_state.get("tutor_phone") or "").strip()
+        town_v = (st.session_state.get("tutor_town") or "").strip()
+        city_v = (st.session_state.get("tutor_city") or "").strip()
+        email_v = (st.session_state.get("tutor_email") or "").strip()
+
+        if not all([name_v, surname_v, phone_v, town_v, city_v, email_v]):
             st.error("All fields are required.")
         else:
             try:
                 insert_res = supabase.table("tutors").insert({
                     "user_id": user.id,
-                    "name": name,
-                    "surname": surname,
-                    "phone": phone,
-                    "town": town,
-                    "city": city,
-                    "email": email,
+                    "name": name_v,
+                    "surname": surname_v,
+                    "phone": phone_v,
+                    "town": town_v,
+                    "city": city_v,
+                    "email": email_v,
                     "transport": transport,
                     "roles": _role_to_db(roles),
                     "afrikaans": bool(afrikaans),
@@ -149,12 +157,12 @@ if not profile:
                             svc = get_supabase_service()
                             svc_res = svc.table('tutors').insert({
                                 "user_id": user.id,
-                                "name": name,
-                                "surname": surname,
-                                "phone": phone,
-                                "town": town,
-                                "city": city,
-                                "email": email,
+                                "name": name_v,
+                                "surname": surname_v,
+                                "phone": phone_v,
+                                "town": town_v,
+                                "city": city_v,
+                                "email": email_v,
                                 "transport": transport,
                                 "roles": _role_to_db(roles),
                                 "afrikaans": bool(afrikaans),

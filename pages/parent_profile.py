@@ -144,11 +144,11 @@ if profile:
     else:
         # Editing form
         st.subheader("Edit Profile")
-        parent_name = st.text_input("Parent Name", value=profile.get('parent_name') or '')
-        phone = st.text_input("Phone Number", value=profile.get('phone') or '')
+        parent_name = st.text_input("Parent Name", value=profile.get('parent_name') or '', key="parent_name_edit")
+        phone = st.text_input("Phone Number", value=profile.get('phone') or '', key="parent_phone_edit")
         # Allow editing the contact email stored on the parent profile
         email_value = profile.get('email') or get_user_attr(user, 'email') or ''
-        email = st.text_input("Contact Email", value=email_value)
+        email = st.text_input("Contact Email", value=email_value, key="parent_email_edit")
         # children editor
         existing_children = profile.get('children') or []
         if not existing_children:
@@ -186,10 +186,15 @@ if profile:
                     if name:
                         children.append({'name': name, 'grade': grade or None, 'school': school or None})
 
+                # read edited values from session_state (strip to be robust)
+                parent_name_v = (st.session_state.get('parent_name_edit') or '').strip()
+                phone_v = (st.session_state.get('parent_phone_edit') or '').strip()
+                email_v = (st.session_state.get('parent_email_edit') or '').strip()
+
                 payload = {
-                    'parent_name': parent_name or None,
-                    'phone': phone or None,
-                    'email': (email or None),
+                    'parent_name': parent_name_v or None,
+                    'phone': phone_v or None,
+                    'email': (email_v or None),
                     'children': children or None,
                 }
                 # For backward compatibility, set first-child fields
@@ -272,21 +277,28 @@ else:
             pass
 
     st.info("Please complete your profile below:")
-    parent_name = st.text_input("Parent Name")
-    phone = st.text_input("Phone Number")
-    child_name = st.text_input("Child Name")
-    grade = st.text_input("Child Grade")
-    school = st.text_input("Child School")
+    parent_name = st.text_input("Parent Name", key="parent_name_input")
+    phone = st.text_input("Phone Number", key="parent_phone_input")
+    child_name = st.text_input("Child Name", key="parent_child_name_input")
+    grade = st.text_input("Child Grade", key="parent_child_grade_input")
+    school = st.text_input("Child School", key="parent_child_school_input")
 
     if st.button("Save Profile"):
-        if parent_name and phone and child_name and grade and school:
+        # read values from session_state to better capture browser autofill
+        parent_name_v = (st.session_state.get("parent_name_input") or "").strip()
+        phone_v = (st.session_state.get("parent_phone_input") or "").strip()
+        child_name_v = (st.session_state.get("parent_child_name_input") or "").strip()
+        grade_v = (st.session_state.get("parent_child_grade_input") or "").strip()
+        school_v = (st.session_state.get("parent_child_school_input") or "").strip()
+
+        if parent_name_v and phone_v and child_name_v and grade_v and school_v:
             payload = {
                 "user_id": user_id,
-                "parent_name": parent_name,
-                "phone": phone,
-                "child_name": child_name,
-                "grade": grade,
-                "school": school,
+                "parent_name": parent_name_v,
+                "phone": phone_v,
+                "child_name": child_name_v,
+                "grade": grade_v,
+                "school": school_v,
                 "email": user_email,
             }
             try:
