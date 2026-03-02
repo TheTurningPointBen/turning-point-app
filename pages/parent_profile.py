@@ -97,7 +97,7 @@ if profile:
     if 'editing_profile' not in st.session_state:
         st.session_state['editing_profile'] = False
 
-    if st.button("✏️ Edit Profile"):
+    if st.button("✏️ Edit Profile", key="parent_edit_toggle"):
         st.session_state['editing_profile'] = True
 
     # Display or edit profile
@@ -168,15 +168,15 @@ if profile:
 
         col_add, col_save, col_cancel = st.columns([1,1,1])
         with col_add:
-            if st.button("Add another child"):
+            if st.button("Add another child", key="parent_add_child"):
                 st.session_state['children_count'] += 1
                 st.experimental_rerun()
         with col_cancel:
-            if st.button("Cancel"):
+            if st.button("Cancel", key="parent_cancel_edit"):
                 st.session_state['editing_profile'] = False
                 st.experimental_rerun()
         with col_save:
-            if st.button("Save Profile"):
+            if st.button("Save Profile", key="parent_edit_save"):
                 # gather children
                 children = []
                 for idx in range(st.session_state['children_count']):
@@ -283,7 +283,7 @@ else:
     grade = st.text_input("Child Grade", key="parent_child_grade_input")
     school = st.text_input("Child School", key="parent_child_school_input")
 
-    if st.button("Save Profile"):
+    if st.button("Save Profile", key="parent_create_save"):
         # read values from session_state to better capture browser autofill
         parent_name_v = (st.session_state.get("parent_name_input") or "").strip()
         phone_v = (st.session_state.get("parent_phone_input") or "").strip()

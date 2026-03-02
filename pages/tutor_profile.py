@@ -111,7 +111,7 @@ if not profile:
     st.subheader("Transport")
     transport = st.checkbox("I have my own transport")
 
-    if st.button("Save Profile"):
+    if st.button("Save Profile", key="tutor_create_save"):
         # read values from session_state to better capture browser autofill
         name_v = (st.session_state.get("tutor_name") or "").strip()
         surname_v = (st.session_state.get("tutor_surname") or "").strip()
@@ -212,7 +212,7 @@ if langs:
 else:
     st.write("**Languages:** English")
 
-if st.button("Edit Profile"):
+if st.button("Edit Profile", key="tutor_edit_btn"):
     try:
         st.session_state._editing_tutor_profile = True
         st.experimental_rerun()
@@ -252,7 +252,7 @@ if st.session_state.get("_editing_tutor_profile"):
     isixhosa = st.checkbox("IsiXhosa", value=bool(profile.get('isixhosa')))
     french = st.checkbox("French", value=bool(profile.get('french')))
 
-    if st.button("Save Changes"):
+    if st.button("Save Changes", key="tutor_edit_save"):
         # Build payload and only include keys that exist in the tutors row
         payload = {}
         existing = set(profile.keys() or [])
