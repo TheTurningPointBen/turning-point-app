@@ -180,9 +180,18 @@ with tab1:
                 except Exception:
                     pass
         except Exception as e:
-            st.error("Login exception. Please try again later.")
             try:
-                st.exception(e)
+                msg = str(e) or ''
+            except Exception:
+                msg = ''
+
+            if 'Invalid login' in msg or 'Invalid login credentials' in msg or '401' in msg:
+                st.error("Invalid login credentials. Please check your email and password.")
+            else:
+                st.error("Login failed. Please try again later.")
+
+            try:
+                print("Parent login error:", msg)
             except Exception:
                 pass
 
