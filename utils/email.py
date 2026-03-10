@@ -8,6 +8,7 @@ from typing import Optional, Dict
 import os
 import json
 import re
+from html import escape
 from urllib.parse import urlparse, urlunparse
 
 import requests
@@ -49,6 +50,14 @@ def _with_sign_off_html(html: Optional[str]) -> Optional[str]:
     if not base:
         return EMAIL_SIGN_OFF_HTML
     return f"{base}<br><br>{EMAIL_SIGN_OFF_HTML}"
+
+
+def _plain_to_html(text: Optional[str]) -> str:
+    """Convert plain text into minimal, safe HTML while preserving line breaks."""
+    plain = (text or "").strip()
+    if not plain:
+        return ""
+    return escape(plain).replace("\n", "<br>")
 
 
 def _get_sender() -> Optional[str]:
@@ -130,7 +139,8 @@ def _send_via_mailblaze(to_addr: str, subject: str, body: str, html: Optional[st
         return {"error": "missing-sender: set SENDER_EMAIL or EMAIL_FROM"}
 
     # Build minimal transactional JSON payload — only include non-empty body fields
-    encoded_body = base64.b64encode((html or body or "").encode("utf-8")).decode("utf-8")
+    html_body = html if html is not None else _plain_to_html(body)
+    encoded_body = base64.b64encode((html_body or "").encode("utf-8")).decode("utf-8")
     encoded_plain = base64.b64encode((body or "").encode("utf-8")).decode("utf-8")
 
     tx_payload = {

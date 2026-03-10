@@ -818,10 +818,14 @@ with st.expander("Create Manual Booking (Admin)"):
                                     subject_p = f"Booking confirmed — Tutor assigned: {tutor_display}"
                                     body_p = (
                                         f"Hello {p.get('parent_name') or ''},\n\n"
-                                        f"Your booking for {child_name or ''} on {exam_date.isoformat()} at {start_time.strftime('%H:%M:%S')} has been confirmed.\n"
-                                        f"Assigned tutor: {tutor_display}\n"
-                                        f"Tutor email: {t.get('email') if t else 'N/A'}\n"
-                                        f"Tutor phone: {t.get('phone') if t else 'N/A'}\n\n"
+                                        f"Your booking has been confirmed.\n\n"
+                                        f"Booking details:\n"
+                                        f"- Child: {child_name or 'N/A'}\n"
+                                        f"- Date: {exam_date.isoformat()}\n"
+                                        f"- Time: {start_time.strftime('%H:%M:%S')}\n"
+                                        f"- Assigned tutor: {tutor_display}\n"
+                                        f"- Tutor email: {t.get('email') if t else 'N/A'}\n"
+                                        f"- Tutor phone: {t.get('phone') if t else 'N/A'}\n\n"
                                         f"If you have any questions, reply to this email or contact admin.\n"
                                     )
                                     send_email(parent_email, subject_p, body_p)

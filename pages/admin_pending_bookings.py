@@ -270,10 +270,14 @@ for booking in bookings:
                         subj = f"Booking confirmed — Tutor assigned: {tutor_display}"
                         body = (
                             f"Hello {parent.get('parent_name') or ''},\n\n"
-                            f"Your booking for {booking.get('child_name') or ''} on {booking.get('exam_date')} at {booking.get('start_time')} has been confirmed.\n"
-                            f"Assigned tutor: {tutor_display}\n"
-                            f"Tutor email: {tutor.get('email') if tutor else 'N/A'}\n"
-                            f"Tutor phone: {tutor.get('phone') if tutor else 'N/A'}\n\n"
+                            f"Your booking has been confirmed.\n\n"
+                            f"Booking details:\n"
+                            f"- Child: {booking.get('child_name') or 'N/A'}\n"
+                            f"- Date: {booking.get('exam_date')}\n"
+                            f"- Time: {booking.get('start_time')}\n"
+                            f"- Assigned tutor: {tutor_display}\n"
+                            f"- Tutor email: {tutor.get('email') if tutor else 'N/A'}\n"
+                            f"- Tutor phone: {tutor.get('phone') if tutor else 'N/A'}\n\n"
                             f"If you have any questions, reply to this email or contact admin.\n"
                         )
                         try:
