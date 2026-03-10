@@ -117,6 +117,19 @@ with back_col:
 with main_col:
     st.header("Book a Reader / Scribe for your child")
 
+
+def _force_rerun():
+    """Trigger a rerun across Streamlit versions."""
+    try:
+        st.rerun()
+        return
+    except Exception:
+        pass
+    try:
+        st.experimental_rerun()
+    except Exception:
+        pass
+
 # Persist and reset booking form values in session state.
 def _set_parent_booking_form_defaults():
     tomorrow_date = (datetime.now() + timedelta(days=1)).date()
@@ -381,17 +394,14 @@ def _insert_booking(add_another=False):
             f"Duration: {duration} min\n"
             f"Extra Time: {extra_time} min\n"
         )
-        # Notify admin about the new booking. Use explicit admin address.
-        email_res = send_admin_email(subject_line, body)
+        # Notify admin about the new booking at the shared admin inbox.
+        email_res = send_admin_email(subject_line, body, admin_email="admin@theturningpoint.co.za")
 
         # We only notify admin on initial booking submission.
         # Admin will assign/confirm the tutor and then the app will send
         # confirmation emails to the parent and the tutor.
         st.session_state["parent_booking_reset_form"] = True
-        try:
-            st.experimental_rerun()
-        except Exception:
-            pass
+        _force_rerun()
     else:
         st.error(f"Booking failed: {getattr(insert_res, 'error', None)}")
 
@@ -404,10 +414,7 @@ if _do_save:
 
 if _do_save_add:
     _insert_booking(add_another=True)
-    try:
-        st.experimental_rerun()
-    except Exception:
-        pass
+    _force_rerun()
 
 # Note: Back/Logout button removed per user request
 

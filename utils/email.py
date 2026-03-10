@@ -187,10 +187,10 @@ def send_email(to_email: str, subject: str, body: str, html: Optional[str] = Non
 def send_admin_email(subject: str, body: str, admin_email: Optional[str] = None) -> Dict:
     """Send an email to admin via Mailblaze.
 
-    If `admin_email` is not provided this will use the resolved sender or the
-    `ADMIN_EMAIL` env var as the destination.
+    If `admin_email` is not provided this will use the `ADMIN_EMAIL` env var,
+    then fall back to the shared admin inbox.
     """
-    admin = admin_email or os.getenv("ADMIN_EMAIL") or _get_sender()
+    admin = admin_email or os.getenv("ADMIN_EMAIL") or "admin@theturningpoint.co.za"
     if not admin:
         return {"error": "no-admin-email"}
     return send_email(admin, subject, body)
