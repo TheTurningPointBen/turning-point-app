@@ -14,6 +14,43 @@ import requests
 import base64
 
 
+EMAIL_SIGN_OFF_PLAIN = (
+    "Thank you for your booking.\n"
+    "Please feel free to contact admin@theturningpoint.co.za if you have any concerns.\n\n"
+    "Kind Regards\n"
+    "The Turning Point Team"
+)
+
+EMAIL_SIGN_OFF_HTML = (
+    "<p>Thank you for your booking.<br>"
+    "Please feel free to contact admin@theturningpoint.co.za if you have any concerns.</p>"
+    "<p>Kind Regards<br>"
+    "The Turning Point Team</p>"
+)
+
+
+def _with_sign_off(text: Optional[str]) -> str:
+    """Append the standard sign-off once to plain-text email content."""
+    base = (text or "").rstrip()
+    if "The Turning Point Team" in base and "admin@theturningpoint.co.za" in base:
+        return base
+    if not base:
+        return EMAIL_SIGN_OFF_PLAIN
+    return f"{base}\n\n{EMAIL_SIGN_OFF_PLAIN}"
+
+
+def _with_sign_off_html(html: Optional[str]) -> Optional[str]:
+    """Append the standard sign-off once to HTML email content."""
+    if html is None:
+        return None
+    base = html.rstrip()
+    if "The Turning Point Team" in base and "admin@theturningpoint.co.za" in base:
+        return base
+    if not base:
+        return EMAIL_SIGN_OFF_HTML
+    return f"{base}<br><br>{EMAIL_SIGN_OFF_HTML}"
+
+
 def _get_sender() -> Optional[str]:
     """Resolve a usable sender email from common environment variables.
 
@@ -141,7 +178,10 @@ def send_email(to_email: str, subject: str, body: str, html: Optional[str] = Non
     )
     if not mb_key_present:
         return {"error": "Missing Mailblaze configuration (MAILBLAZE_API_KEY)"}
-    return _send_via_mailblaze(to_email, subject, body, html=html)
+
+    body_with_sign_off = _with_sign_off(body)
+    html_with_sign_off = _with_sign_off_html(html)
+    return _send_via_mailblaze(to_email, subject, body_with_sign_off, html=html_with_sign_off)
 
 
 def send_admin_email(subject: str, body: str, admin_email: Optional[str] = None) -> Dict:

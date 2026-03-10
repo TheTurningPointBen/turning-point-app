@@ -117,20 +117,45 @@ with back_col:
 with main_col:
     st.header("Book a Reader / Scribe for your child")
 
+# Persist and reset booking form values in session state.
+def _set_parent_booking_form_defaults():
+    tomorrow_date = (datetime.now() + timedelta(days=1)).date()
+    defaults = {
+        "pb_subject": "",
+        "pb_exam_date": tomorrow_date,
+        "pb_start_time": time(7, 45),
+        "pb_duration": 60,
+        "pb_extra_time": 0,
+        "pb_role_required": "Reader",
+    }
+    for key, value in defaults.items():
+        st.session_state[key] = value
+
+
+if st.session_state.pop("parent_booking_reset_form", False):
+    _set_parent_booking_form_defaults()
+
+if "pb_subject" not in st.session_state:
+    _set_parent_booking_form_defaults()
+
+saved_notice = st.session_state.pop("parent_booking_saved_notice", None)
+if saved_notice:
+    st.success(saved_notice)
+
 # Form inputs
 # Default exam date to tomorrow (cannot pick past dates/times)
-subject = st.text_input("Subject")
+subject = st.text_input("Subject", key="pb_subject")
 # Default exam date to tomorrow (cannot pick past dates/times)
 # Default exam date to tomorrow (cannot pick past dates/times)
 tomorrow = (datetime.now() + timedelta(days=1)).date()
 today = datetime.now().date()
-exam_date = st.date_input("Exam Date", value=tomorrow, min_value=today)
+exam_date = st.date_input("Exam Date", min_value=today, key="pb_exam_date")
 # Default start time remains 07:45
-start_time = st.time_input("Start Time", value=time(7, 45))
-duration = st.number_input("Duration (minutes)", min_value=30, max_value=180, value=60)
-extra_time = st.number_input("Extra Time (minutes)", min_value=0, max_value=60, value=0)
+start_time = st.time_input("Start Time", key="pb_start_time")
+duration = st.number_input("Duration (minutes)", min_value=30, max_value=180, key="pb_duration")
+extra_time = st.number_input("Extra Time (minutes)", min_value=0, max_value=60, key="pb_extra_time")
 role_options = ["Reader", "Scribe", "Both (Reader & Scribe)", "Invigilator", "Prompter"]
-role_required = st.selectbox("Role Required", role_options)
+role_required = st.selectbox("Role Required", role_options, key="pb_role_required")
 
 # Normalize role text into DB-acceptable values (check constraints expect
 # short canonical values such as 'Reader','Scribe','Both','Invigilator','Prompter','All')
@@ -340,7 +365,7 @@ def _insert_booking(add_another=False):
             return
 
     if getattr(insert_res, 'error', None) is None and insert_res.data:
-        st.success("Booking submitted! Admin will confirm your tutor.")
+        st.session_state["parent_booking_saved_notice"] = "Booking submitted! Admin will confirm your tutor. You can add another booking below."
 
         # Notify admin if SMTP is configured
         subject_line = f"New booking: {child_name or 'Unknown child'} — {subject}"
@@ -362,7 +387,11 @@ def _insert_booking(add_another=False):
         # We only notify admin on initial booking submission.
         # Admin will assign/confirm the tutor and then the app will send
         # confirmation emails to the parent and the tutor.
-        st.info("Booking created. No tutor selected; admin will assign one.")
+        st.session_state["parent_booking_reset_form"] = True
+        try:
+            st.experimental_rerun()
+        except Exception:
+            pass
     else:
         st.error(f"Booking failed: {getattr(insert_res, 'error', None)}")
 
