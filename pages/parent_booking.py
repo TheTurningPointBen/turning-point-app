@@ -129,7 +129,7 @@ exam_date = st.date_input("Exam Date", value=tomorrow, min_value=today)
 start_time = st.time_input("Start Time", value=time(7, 45))
 duration = st.number_input("Duration (minutes)", min_value=30, max_value=180, value=60)
 extra_time = st.number_input("Extra Time (minutes)", min_value=0, max_value=60, value=0)
-role_options = ["Reader", "Scribe", "Both (Reader & Scribe)", "Invigilator", "Prompter", "All of the Above"]
+role_options = ["Reader", "Scribe", "Both (Reader & Scribe)", "Invigilator", "Prompter"]
 role_required = st.selectbox("Role Required", role_options)
 
 # Normalize role text into DB-acceptable values (check constraints expect
@@ -139,14 +139,17 @@ def _normalize_role_for_db(r: str):
         if not r:
             return None
         rr = r.strip()
+        # Map any legacy UI variants to canonical DB values.
+        if rr in ("All", "All of the Above"):
+            return "Both"
         if 'Both' in rr:
             return 'Both'
-        if 'All' in rr:
-            return 'All'
-        # otherwise assume it's one of the exact DB values
-        return rr
+        allowed = {'Reader', 'Scribe', 'Invigilator', 'Prompter'}
+        if rr in allowed:
+            return rr
+        return None
     except Exception:
-        return r
+        return None
 
 # role value to persist in DB
 role_required_db = _normalize_role_for_db(role_required)
@@ -282,6 +285,12 @@ col1, col2 = st.columns([1,1])
 
 
 def _insert_booking(add_another=False):
+    normalized_role_required = _normalize_role_for_db(role_required)
+
+    if not normalized_role_required:
+        st.error("Please choose a valid role before saving the booking.")
+        return
+
     if delta.total_seconds() < 24*3600:
         wa_number_display = "+27 82 883 6167"
         wa_link = "https://wa.me/27828836167"
@@ -301,19 +310,34 @@ def _insert_booking(add_another=False):
         grade_val = profile.get('grade')
         school_val = profile.get('school')
 
-    insert_res = supabase.table("bookings").insert({
+    payload = {
         "parent_id": profile["id"],
         "child_name": child_name,
         "grade": grade_val,
         "school": school_val,
         "subject": subject,
-        "role_required": role_required_db,
+        "role_required": normalized_role_required,
         "exam_date": exam_date.isoformat(),
         "start_time": start_time.strftime("%H:%M:%S"),
         "duration": duration,
         "extra_time": extra_time,
         "tutor_id": selected_tutor_id
-    }).execute()
+    }
+
+    try:
+        insert_res = supabase.table("bookings").insert(payload).execute()
+    except Exception as e:
+        # If a legacy role label slips through, retry once with a safe fallback.
+        if "bookings_role_required_check" in str(e):
+            payload["role_required"] = "Both"
+            try:
+                insert_res = supabase.table("bookings").insert(payload).execute()
+            except Exception as retry_e:
+                st.error(f"Booking failed: {retry_e}")
+                return
+        else:
+            st.error(f"Booking failed: {e}")
+            return
 
     if getattr(insert_res, 'error', None) is None and insert_res.data:
         st.success("Booking submitted! Admin will confirm your tutor.")

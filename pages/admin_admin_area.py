@@ -744,7 +744,7 @@ with st.expander("Create Manual Booking (Admin)"):
                         elif "Prompter" in rr:
                             db_role_required = "Prompter"
                         elif "All" in rr:
-                            db_role_required = "All of the Above"
+                            db_role_required = "Both"
                 except Exception:
                     db_role_required = role_required
 
