@@ -1,5 +1,76 @@
 import os
 import streamlit as st
+from datetime import datetime, timedelta
+
+
+INACTIVITY_TIMEOUT_MINUTES = int(os.getenv("INACTIVITY_TIMEOUT_MINUTES", "15"))
+
+
+def _clear_auth_session_and_redirect_home(reason: str | None = None):
+    """Clear auth/session keys and return the user to the homepage."""
+    keep_keys = {"_is_running"}
+    for k in list(st.session_state.keys()):
+        if k in keep_keys:
+            continue
+        try:
+            del st.session_state[k]
+        except Exception:
+            pass
+
+    st.session_state["page"] = "homepage"
+    if reason:
+        st.session_state["flash_warning"] = reason
+
+    try:
+        st.rerun()
+        return
+    except Exception:
+        pass
+    try:
+        st.experimental_rerun()
+        return
+    except Exception:
+        pass
+    try:
+        st.markdown("<script>window.location.href='/'</script>", unsafe_allow_html=True)
+    except Exception:
+        pass
+    try:
+        st.stop()
+    except Exception:
+        pass
+
+
+def enforce_inactivity_timeout(timeout_minutes: int = INACTIVITY_TIMEOUT_MINUTES):
+    """Auto-logout authenticated users after a period of inactivity."""
+    try:
+        if st.session_state.get("flash_warning"):
+            st.warning(st.session_state.pop("flash_warning"))
+    except Exception:
+        pass
+
+    is_auth = bool(st.session_state.get("authenticated"))
+    role = st.session_state.get("role")
+    protected_roles = {"parent", "tutor", "admin"}
+
+    if not is_auth or role not in protected_roles:
+        st.session_state.pop("_last_activity_at", None)
+        return
+
+    now = datetime.utcnow()
+    last_raw = st.session_state.get("_last_activity_at")
+    if last_raw:
+        try:
+            last_dt = datetime.fromisoformat(last_raw)
+            if now - last_dt > timedelta(minutes=timeout_minutes):
+                _clear_auth_session_and_redirect_home(
+                    f"You were logged out after {timeout_minutes} minutes of inactivity."
+                )
+                return
+        except Exception:
+            pass
+
+    st.session_state["_last_activity_at"] = now.isoformat()
 
 
 def top_header(image_path="assets/topright.png", height=88):
@@ -72,6 +143,9 @@ def hide_sidebar():
         """,
         unsafe_allow_html=True,
     )
+
+    # Apply global inactivity handling for authenticated portal users.
+    enforce_inactivity_timeout()
 
 
 def safe_rerun():
